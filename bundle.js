@@ -38461,6 +38461,9 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   var MESSAGE_DRAFT_KEY = "tg_message_draft";
   var FAVORITES_KEY = "tg_favorites";
   var LAST_BROADCAST_KEY = "tg_last_broadcast";
+  var BROADCAST_HISTORY_KEY = "tg_broadcast_history";
+  var NOTES_KEY = "tg_notes";
+  var MAX_HISTORY = 50;
   var el = (id) => document.getElementById(id);
   var screens = {
     setup: el("setup-screen"),
@@ -38478,16 +38481,49 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   var searchQuery = "";
   var activeTab = "all";
   var favorites = loadFavorites();
-  var lastBroadcast = loadLastBroadcast();
-  function loadLastBroadcast() {
+  var broadcastHistory = loadBroadcastHistory();
+  var notes = loadNotes();
+  var openBatchIds = new Set(broadcastHistory[0] ? [broadcastHistory[0].id] : []);
+  var openNoteIds = /* @__PURE__ */ new Set();
+  function loadBroadcastHistory() {
     try {
-      return JSON.parse(localStorage.getItem(LAST_BROADCAST_KEY)) || null;
+      const raw = localStorage.getItem(BROADCAST_HISTORY_KEY);
+      if (raw) return JSON.parse(raw);
     } catch (e) {
-      return null;
+    }
+    try {
+      const old = JSON.parse(localStorage.getItem(LAST_BROADCAST_KEY));
+      if (old) {
+        localStorage.removeItem(LAST_BROADCAST_KEY);
+        return [{ id: old.sentAt, text: old.text, sentAt: old.sentAt, items: old.items }];
+      }
+    } catch (e) {
+    }
+    return [];
+  }
+  function saveBroadcastHistory() {
+    localStorage.setItem(BROADCAST_HISTORY_KEY, JSON.stringify(broadcastHistory));
+  }
+  function addBroadcastToHistory(entry) {
+    broadcastHistory.unshift(entry);
+    if (broadcastHistory.length > MAX_HISTORY) broadcastHistory.length = MAX_HISTORY;
+    saveBroadcastHistory();
+  }
+  function loadNotes() {
+    try {
+      return JSON.parse(localStorage.getItem(NOTES_KEY)) || {};
+    } catch (e) {
+      return {};
     }
   }
-  function saveLastBroadcast() {
-    localStorage.setItem(LAST_BROADCAST_KEY, JSON.stringify(lastBroadcast));
+  function saveNotes() {
+    localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+  }
+  function setNote(id, rawValue) {
+    const trimmed = rawValue.trim();
+    if (trimmed) notes[id] = trimmed;
+    else delete notes[id];
+    saveNotes();
   }
   function sleep2(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -38628,19 +38664,15 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   }
   function render() {
     el("select-row").classList.toggle("hidden", activeTab === "sent");
-    el("sent-info").classList.toggle("hidden", activeTab !== "sent");
     el("refresh-contacts").classList.toggle("hidden", activeTab === "sent");
     if (activeTab === "sent") renderSentList();
     else renderContacts();
   }
-  el("check-statuses").addEventListener("click", checkStatuses);
-  async function checkStatuses() {
-    if (!lastBroadcast) return;
-    const btn = el("check-statuses");
+  async function checkStatuses(batch, btn) {
     btn.disabled = true;
     btn.textContent = "\u041F\u0440\u043E\u0432\u0435\u0440\u044F\u044E\u2026";
     try {
-      const sentItems = lastBroadcast.items.filter((it) => it.status === "sent" && it.messageId);
+      const sentItems = batch.items.filter((it) => it.status === "sent" && it.messageId);
       if (sentItems.length > 0) {
         const readMap = await checkReadStatus(sentItems);
         for (const it of sentItems) {
@@ -38656,13 +38688,15 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
           }
         }
       }
-      saveLastBroadcast();
+      saveBroadcastHistory();
       renderSentList();
     } catch (e) {
       alert("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0441\u0442\u0430\u0442\u0443\u0441\u044B: " + e.message);
     } finally {
-      btn.disabled = false;
-      btn.textContent = "\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0441\u0442\u0430\u0442\u0443\u0441\u044B";
+      if (btn.isConnected) {
+        btn.disabled = false;
+        btn.textContent = "\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0441\u0442\u0430\u0442\u0443\u0441\u044B";
+      }
     }
   }
   el("message-text").addEventListener("input", () => {
@@ -38716,8 +38750,9 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     });
     progressSummary.textContent = `\u0413\u043E\u0442\u043E\u0432\u043E: \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u043E ${sent}, \u043E\u0448\u0438\u0431\u043E\u043A ${failed} \u0438\u0437 ${targets.length}`;
     el("send-btn").disabled = false;
-    lastBroadcast = { text, sentAt: Date.now(), items: sentItems };
-    saveLastBroadcast();
+    const sentAt = Date.now();
+    addBroadcastToHistory({ id: sentAt, text, sentAt, items: sentItems });
+    openBatchIds = /* @__PURE__ */ new Set([sentAt]);
   });
   function contactLabel(c) {
     const name = [c.firstName, c.lastName].filter(Boolean).join(" ") || c.username || c.phone || "\u0411\u0435\u0437 \u0438\u043C\u0435\u043D\u0438";
@@ -38773,9 +38808,11 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
       <div class="contact-info">
         <div class="contact-name">${escapeHtml(contactLabel(c))}</div>
         <div class="contact-sub">${escapeHtml(contactSub(c))}</div>
+        ${noteFragmentHtml(c.id)}
       </div>
       <div class="contact-actions">
         ${activeTab === "favorites" ? `<input type="number" class="priority-input" value="${priorityValue}" placeholder="\u2014" />` : ""}
+        <button class="note-btn ${notes[c.id] ? "active" : ""}" type="button">\u270E</button>
         <button class="star-btn ${fav ? "active" : ""}" type="button">${fav ? "\u2605" : "\u2606"}</button>
       </div>
     `;
@@ -38785,7 +38822,8 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
         else selectedIds.delete(c.id);
         updateSelectedCount();
       });
-      row.querySelector(".contact-info").addEventListener("click", () => {
+      row.querySelector(".contact-info").addEventListener("click", (e) => {
+        if (e.target.closest(".note-input")) return;
         checkbox.checked = !checkbox.checked;
         checkbox.dispatchEvent(new Event("change"));
       });
@@ -38793,6 +38831,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
         e.stopPropagation();
         toggleFavorite(c.id);
       });
+      wireNoteControls(row, c.id, renderContacts);
       const priorityInput = row.querySelector(".priority-input");
       if (priorityInput) {
         priorityInput.addEventListener("click", (e) => e.stopPropagation());
@@ -38808,42 +38847,116 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     const listEl = el("contacts-list");
     const emptyEl = el("contacts-empty");
     listEl.innerHTML = "";
-    if (!lastBroadcast || lastBroadcast.items.length === 0) {
+    if (broadcastHistory.length === 0) {
       emptyEl.textContent = "\u041F\u043E\u043A\u0430 \u043D\u0435\u0442 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u043D\u044B\u0445 \u0440\u0430\u0441\u0441\u044B\u043B\u043E\u043A";
       emptyEl.classList.remove("hidden");
-      el("sent-summary").textContent = "";
       return;
     }
-    const sentAtStr = new Date(lastBroadcast.sentAt).toLocaleString("ru-RU");
-    el("sent-summary").textContent = `\xAB${lastBroadcast.text}\xBB \u2014 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u043E ${sentAtStr}, \u043F\u043E\u043B\u0443\u0447\u0430\u0442\u0435\u043B\u0435\u0439: ${lastBroadcast.items.length}`;
-    let items = lastBroadcast.items;
-    if (searchQuery) items = filterContacts(items, searchQuery);
-    emptyEl.classList.toggle("hidden", items.length > 0);
-    if (items.length === 0) emptyEl.textContent = "\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E";
-    items.forEach((it) => {
-      const row = document.createElement("div");
-      row.className = "contact-row";
-      let statusHtml;
-      if (it.status === "failed") {
-        statusHtml = `<span class="status-badge status-failed-badge">\u043D\u0435 \u0434\u043E\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u043E</span>`;
-      } else if (it.read === true) {
-        statusHtml = `<span class="status-badge status-read">\u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043D\u043E</span>`;
-      } else if (it.read === false) {
-        statusHtml = `<span class="status-badge status-unread">\u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043D\u043E</span>`;
-      } else {
-        statusHtml = `<span class="status-badge status-unknown">\u043D\u0435 \u043F\u0440\u043E\u0432\u0435\u0440\u0435\u043D\u043E</span>`;
-      }
-      const replyHtml = it.reply ? `<div class="reply-text">\u041E\u0442\u0432\u0435\u0442: ${escapeHtml(it.reply)}</div>` : "";
-      row.innerHTML = `
-      <div class="contact-info">
-        <div class="contact-name">${escapeHtml(contactLabel(it))}</div>
-        <div class="contact-sub">${escapeHtml(contactSub(it))}</div>
-        ${replyHtml}
+    const visibleBatches = broadcastHistory.map((batch) => ({
+      batch,
+      items: searchQuery ? filterContacts(batch.items, searchQuery) : batch.items
+    })).filter(({ items }) => !searchQuery || items.length > 0);
+    emptyEl.classList.toggle("hidden", visibleBatches.length > 0);
+    if (visibleBatches.length === 0) emptyEl.textContent = "\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E";
+    visibleBatches.forEach(({ batch, items }) => {
+      const isOpen = openBatchIds.has(batch.id);
+      const card = document.createElement("div");
+      card.className = "batch-card" + (isOpen ? " open" : "");
+      const sentAtStr = new Date(batch.sentAt).toLocaleString("ru-RU");
+      card.innerHTML = `
+      <div class="batch-header">
+        <div class="batch-header-text">
+          <div class="batch-text">${escapeHtml(batch.text)}</div>
+          <div class="muted">${sentAtStr} \xB7 \u043F\u043E\u043B\u0443\u0447\u0430\u0442\u0435\u043B\u0435\u0439: ${batch.items.length}</div>
+        </div>
+        <span class="batch-chevron">\u25B6</span>
       </div>
-      <div class="contact-actions">${statusHtml}</div>
     `;
-      listEl.appendChild(row);
+      const header = card.querySelector(".batch-header");
+      header.addEventListener("click", () => {
+        if (openBatchIds.has(batch.id)) openBatchIds.delete(batch.id);
+        else openBatchIds.add(batch.id);
+        renderSentList();
+      });
+      if (isOpen) {
+        const actions = document.createElement("div");
+        actions.className = "batch-actions";
+        const checkBtn = document.createElement("button");
+        checkBtn.type = "button";
+        checkBtn.className = "link-btn";
+        checkBtn.textContent = "\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0441\u0442\u0430\u0442\u0443\u0441\u044B";
+        checkBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          checkStatuses(batch, checkBtn);
+        });
+        actions.appendChild(checkBtn);
+        card.appendChild(actions);
+        const body = document.createElement("div");
+        body.className = "batch-body";
+        items.forEach((it) => body.appendChild(buildSentRow(it)));
+        card.appendChild(body);
+      }
+      listEl.appendChild(card);
     });
+  }
+  function buildSentRow(it) {
+    const row = document.createElement("div");
+    row.className = "contact-row";
+    let statusHtml;
+    if (it.status === "failed") {
+      statusHtml = `<span class="status-badge status-failed-badge">\u043D\u0435 \u0434\u043E\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u043E</span>`;
+    } else if (it.read === true) {
+      statusHtml = `<span class="status-badge status-read">\u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043D\u043E</span>`;
+    } else if (it.read === false) {
+      statusHtml = `<span class="status-badge status-unread">\u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043D\u043E</span>`;
+    } else {
+      statusHtml = `<span class="status-badge status-unknown">\u043D\u0435 \u043F\u0440\u043E\u0432\u0435\u0440\u0435\u043D\u043E</span>`;
+    }
+    const replyHtml = it.reply ? `<div class="reply-text">\u041E\u0442\u0432\u0435\u0442: ${escapeHtml(it.reply)}</div>` : "";
+    row.innerHTML = `
+    <div class="contact-info">
+      <div class="contact-name">${escapeHtml(contactLabel(it))}</div>
+      <div class="contact-sub">${escapeHtml(contactSub(it))}</div>
+      ${replyHtml}
+      ${noteFragmentHtml(it.id)}
+    </div>
+    <div class="contact-actions">
+      ${statusHtml}
+      <button class="note-btn ${notes[it.id] ? "active" : ""}" type="button">\u270E</button>
+    </div>
+  `;
+    wireNoteControls(row, it.id, renderSentList);
+    return row;
+  }
+  function noteFragmentHtml(id) {
+    const note = notes[id] || "";
+    if (openNoteIds.has(id)) {
+      return `<input type="text" class="note-input" placeholder="\u0417\u0430\u043C\u0435\u0442\u043A\u0430 \u043E \u043A\u043E\u043D\u0442\u0430\u043A\u0442\u0435" value="${escapeHtml(note)}" />`;
+    }
+    return note ? `<div class="note-text">\u{1F4DD} ${escapeHtml(note)}</div>` : "";
+  }
+  function wireNoteControls(row, id, rerender) {
+    const noteBtn = row.querySelector(".note-btn");
+    noteBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (openNoteIds.has(id)) openNoteIds.delete(id);
+      else openNoteIds.add(id);
+      rerender();
+    });
+    const noteInput = row.querySelector(".note-input");
+    if (noteInput) {
+      noteInput.addEventListener("click", (e) => e.stopPropagation());
+      noteInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") e.target.blur();
+      });
+      noteInput.addEventListener("blur", (e) => {
+        setNote(id, e.target.value);
+        openNoteIds.delete(id);
+        rerender();
+      });
+      noteInput.focus();
+      noteInput.setSelectionRange(noteInput.value.length, noteInput.value.length);
+    }
   }
   function updateSelectedCount() {
     el("selected-count").textContent = `\u0412\u044B\u0431\u0440\u0430\u043D\u043E: ${selectedIds.size} \u0438\u0437 ${contacts.length}`;
