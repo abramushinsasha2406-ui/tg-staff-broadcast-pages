@@ -232,6 +232,35 @@ header h1 { margin: 0; }
   color: #f5b400;
 }
 
+.sent-info {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.status-badge {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.status-read { background: rgba(76, 175, 80, 0.15); color: var(--ok); }
+.status-unread { background: rgba(138, 138, 142, 0.15); color: var(--muted); }
+.status-unknown { background: rgba(138, 138, 142, 0.1); color: var(--muted); }
+.status-failed-badge { background: rgba(224, 83, 83, 0.15); color: var(--danger); }
+
+.reply-text {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+  border-left: 2px solid var(--accent);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
 #progress-block {
   margin-top: 16px;
   background: var(--panel);

@@ -65,9 +65,14 @@
       <div class="tabs">
         <button id="tab-all" class="tab-btn active" type="button">Все контакты</button>
         <button id="tab-favorites" class="tab-btn" type="button">Избранные</button>
+        <button id="tab-sent" class="tab-btn" type="button">Отправленные</button>
       </div>
       <input type="text" id="contacts-search" class="contacts-search" placeholder="Поиск по имени, юзернейму, телефону" />
-      <div class="select-row">
+      <div id="sent-info" class="sent-info hidden">
+        <p id="sent-summary" class="muted"></p>
+        <button id="check-statuses" class="link-btn" type="button">Проверить статусы</button>
+      </div>
+      <div id="select-row" class="select-row">
         <button id="select-all" class="link-btn">Выбрать всех</button>
         <button id="select-none" class="link-btn">Снять выбор</button>
         <span id="selected-count" class="muted"></span>

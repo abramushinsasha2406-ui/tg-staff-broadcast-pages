@@ -6253,8 +6253,8 @@
         max = Math.floor(max);
         return Math.floor(Math.random() * (max - min + 1)) + min;
       }
-      var sleep2 = (ms, isUnref = false) => new Promise((resolve) => isUnref && platform_1.isNode ? setTimeout(resolve, ms).unref() : setTimeout(resolve, ms));
-      exports.sleep = sleep2;
+      var sleep3 = (ms, isUnref = false) => new Promise((resolve) => isUnref && platform_1.isNode ? setTimeout(resolve, ms).unref() : setTimeout(resolve, ms));
+      exports.sleep = sleep3;
       function bufferXor(a, b) {
         const res = [];
         for (let i = 0; i < a.length; i++) {
@@ -11784,7 +11784,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
         "track",
         "wbr"
       ]);
-      function render(node, options) {
+      function render2(node, options) {
         if (options === void 0) {
           options = {};
         }
@@ -11795,11 +11795,11 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
         }
         return output;
       }
-      exports.default = render;
+      exports.default = render2;
       function renderNode(node, options) {
         switch (node.type) {
           case ElementType.Root:
-            return render(node.children, options);
+            return render2(node.children, options);
           case ElementType.Directive:
           case ElementType.Doctype:
             return renderDirective(node);
@@ -11856,7 +11856,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
         } else {
           tag += ">";
           if (elem.children.length > 0) {
-            tag += render(elem.children, opts);
+            tag += render2(elem.children, opts);
           }
           if (opts.xmlMode || !singleTag.has(elem.name)) {
             tag += "</" + elem.name + ">";
@@ -38404,8 +38404,8 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
           userId: BigInt(contact.id),
           accessHash: BigInt(contact.accessHash)
         });
-        await c.sendMessage(entity, { message: text });
-        onProgress?.({ contact, status: "sent", index: i, total: contacts2.length });
+        const sent = await c.sendMessage(entity, { message: text });
+        onProgress?.({ contact, status: "sent", messageId: sent.id, index: i, total: contacts2.length });
       } catch (e) {
         onProgress?.({ contact, status: "failed", error: e.message, index: i, total: contacts2.length });
       }
@@ -38414,11 +38414,53 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
       }
     }
   }
+  async function checkReadStatus(items) {
+    const c = getClient();
+    await c.connect();
+    const peers = items.map(
+      (it) => new import_telegram2.Api.InputDialogPeer({
+        peer: new import_telegram2.Api.InputPeerUser({
+          userId: BigInt(it.id),
+          accessHash: BigInt(it.accessHash)
+        })
+      })
+    );
+    const result = await c.invoke(new import_telegram2.Api.messages.GetPeerDialogs({ peers }));
+    const map = {};
+    result.dialogs.forEach((d) => {
+      const uid = d.peer && d.peer.userId ? d.peer.userId.toString() : null;
+      if (uid) map[uid] = d.readOutboxMaxId;
+    });
+    return map;
+  }
+  async function fetchReply(contact, afterMessageId) {
+    const c = getClient();
+    await c.connect();
+    const entity = new import_telegram2.Api.InputPeerUser({
+      userId: BigInt(contact.id),
+      accessHash: BigInt(contact.accessHash)
+    });
+    const history = await c.invoke(
+      new import_telegram2.Api.messages.GetHistory({
+        peer: entity,
+        limit: 10,
+        offsetId: 0,
+        offsetDate: 0,
+        addOffset: 0,
+        maxId: 0,
+        minId: afterMessageId,
+        hash: BigInt(0)
+      })
+    );
+    const incoming = (history.messages || []).filter((m) => m.out === false && m.message);
+    return incoming.length > 0 ? incoming[0].message : null;
+  }
 
   // src/entry.js
   var CONTACTS_CACHE_KEY = "tg_contacts_cache";
   var MESSAGE_DRAFT_KEY = "tg_message_draft";
   var FAVORITES_KEY = "tg_favorites";
+  var LAST_BROADCAST_KEY = "tg_last_broadcast";
   var el = (id) => document.getElementById(id);
   var screens = {
     setup: el("setup-screen"),
@@ -38436,6 +38478,20 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   var searchQuery = "";
   var activeTab = "all";
   var favorites = loadFavorites();
+  var lastBroadcast = loadLastBroadcast();
+  function loadLastBroadcast() {
+    try {
+      return JSON.parse(localStorage.getItem(LAST_BROADCAST_KEY)) || null;
+    } catch (e) {
+      return null;
+    }
+  }
+  function saveLastBroadcast() {
+    localStorage.setItem(LAST_BROADCAST_KEY, JSON.stringify(lastBroadcast));
+  }
+  function sleep2(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
   function loadFavorites() {
     try {
       return JSON.parse(localStorage.getItem(FAVORITES_KEY)) || {};
@@ -38548,21 +38604,66 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   });
   el("contacts-search").addEventListener("input", () => {
     searchQuery = el("contacts-search").value.trim().toLowerCase();
-    renderContacts();
+    render();
   });
   el("tab-all").addEventListener("click", () => {
     activeTab = "all";
     updateTabButtons();
-    renderContacts();
+    render();
   });
   el("tab-favorites").addEventListener("click", () => {
     activeTab = "favorites";
     updateTabButtons();
-    renderContacts();
+    render();
+  });
+  el("tab-sent").addEventListener("click", () => {
+    activeTab = "sent";
+    updateTabButtons();
+    render();
   });
   function updateTabButtons() {
     el("tab-all").classList.toggle("active", activeTab === "all");
     el("tab-favorites").classList.toggle("active", activeTab === "favorites");
+    el("tab-sent").classList.toggle("active", activeTab === "sent");
+  }
+  function render() {
+    el("select-row").classList.toggle("hidden", activeTab === "sent");
+    el("sent-info").classList.toggle("hidden", activeTab !== "sent");
+    el("refresh-contacts").classList.toggle("hidden", activeTab === "sent");
+    if (activeTab === "sent") renderSentList();
+    else renderContacts();
+  }
+  el("check-statuses").addEventListener("click", checkStatuses);
+  async function checkStatuses() {
+    if (!lastBroadcast) return;
+    const btn = el("check-statuses");
+    btn.disabled = true;
+    btn.textContent = "\u041F\u0440\u043E\u0432\u0435\u0440\u044F\u044E\u2026";
+    try {
+      const sentItems = lastBroadcast.items.filter((it) => it.status === "sent" && it.messageId);
+      if (sentItems.length > 0) {
+        const readMap = await checkReadStatus(sentItems);
+        for (const it of sentItems) {
+          const maxRead = readMap[it.id];
+          it.read = typeof maxRead === "number" && maxRead >= it.messageId;
+          if (it.read) {
+            try {
+              const reply = await fetchReply(it, it.messageId);
+              if (reply) it.reply = reply;
+            } catch (e) {
+            }
+            await sleep2(300 + Math.random() * 400);
+          }
+        }
+      }
+      saveLastBroadcast();
+      renderSentList();
+    } catch (e) {
+      alert("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0441\u0442\u0430\u0442\u0443\u0441\u044B: " + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0441\u0442\u0430\u0442\u0443\u0441\u044B";
+    }
   }
   el("message-text").addEventListener("input", () => {
     localStorage.setItem(MESSAGE_DRAFT_KEY, el("message-text").value);
@@ -38595,8 +38696,9 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     });
     let sent = 0;
     let failed = 0;
+    const sentItems = [];
     await broadcastToContacts(targets, text, {
-      onProgress: ({ contact, status, index, total }) => {
+      onProgress: ({ contact, status, messageId, index, total }) => {
         const row = rows.get(contact.id);
         const statusSpan = row.querySelector("span:last-child");
         if (status === "sent") {
@@ -38608,11 +38710,14 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
           statusSpan.className = "status-failed";
           failed++;
         }
+        sentItems.push({ ...contact, status, messageId: messageId || null });
         progressSummary.textContent = `\u041F\u0440\u043E\u0433\u0440\u0435\u0441\u0441: ${index + 1}/${total} \u2014 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u043E ${sent}, \u043E\u0448\u0438\u0431\u043E\u043A ${failed}`;
       }
     });
     progressSummary.textContent = `\u0413\u043E\u0442\u043E\u0432\u043E: \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u043E ${sent}, \u043E\u0448\u0438\u0431\u043E\u043A ${failed} \u0438\u0437 ${targets.length}`;
     el("send-btn").disabled = false;
+    lastBroadcast = { text, sentAt: Date.now(), items: sentItems };
+    saveLastBroadcast();
   });
   function contactLabel(c) {
     const name = [c.firstName, c.lastName].filter(Boolean).join(" ") || c.username || c.phone || "\u0411\u0435\u0437 \u0438\u043C\u0435\u043D\u0438";
@@ -38699,6 +38804,47 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     });
     updateSelectedCount();
   }
+  function renderSentList() {
+    const listEl = el("contacts-list");
+    const emptyEl = el("contacts-empty");
+    listEl.innerHTML = "";
+    if (!lastBroadcast || lastBroadcast.items.length === 0) {
+      emptyEl.textContent = "\u041F\u043E\u043A\u0430 \u043D\u0435\u0442 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u043D\u044B\u0445 \u0440\u0430\u0441\u0441\u044B\u043B\u043E\u043A";
+      emptyEl.classList.remove("hidden");
+      el("sent-summary").textContent = "";
+      return;
+    }
+    const sentAtStr = new Date(lastBroadcast.sentAt).toLocaleString("ru-RU");
+    el("sent-summary").textContent = `\xAB${lastBroadcast.text}\xBB \u2014 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u043E ${sentAtStr}, \u043F\u043E\u043B\u0443\u0447\u0430\u0442\u0435\u043B\u0435\u0439: ${lastBroadcast.items.length}`;
+    let items = lastBroadcast.items;
+    if (searchQuery) items = filterContacts(items, searchQuery);
+    emptyEl.classList.toggle("hidden", items.length > 0);
+    if (items.length === 0) emptyEl.textContent = "\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E";
+    items.forEach((it) => {
+      const row = document.createElement("div");
+      row.className = "contact-row";
+      let statusHtml;
+      if (it.status === "failed") {
+        statusHtml = `<span class="status-badge status-failed-badge">\u043D\u0435 \u0434\u043E\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u043E</span>`;
+      } else if (it.read === true) {
+        statusHtml = `<span class="status-badge status-read">\u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043D\u043E</span>`;
+      } else if (it.read === false) {
+        statusHtml = `<span class="status-badge status-unread">\u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043D\u043E</span>`;
+      } else {
+        statusHtml = `<span class="status-badge status-unknown">\u043D\u0435 \u043F\u0440\u043E\u0432\u0435\u0440\u0435\u043D\u043E</span>`;
+      }
+      const replyHtml = it.reply ? `<div class="reply-text">\u041E\u0442\u0432\u0435\u0442: ${escapeHtml(it.reply)}</div>` : "";
+      row.innerHTML = `
+      <div class="contact-info">
+        <div class="contact-name">${escapeHtml(contactLabel(it))}</div>
+        <div class="contact-sub">${escapeHtml(contactSub(it))}</div>
+        ${replyHtml}
+      </div>
+      <div class="contact-actions">${statusHtml}</div>
+    `;
+      listEl.appendChild(row);
+    });
+  }
   function updateSelectedCount() {
     el("selected-count").textContent = `\u0412\u044B\u0431\u0440\u0430\u043D\u043E: ${selectedIds.size} \u0438\u0437 ${contacts.length}`;
   }
@@ -38713,7 +38859,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
       const cached = localStorage.getItem(CONTACTS_CACHE_KEY);
       if (cached) {
         contacts = JSON.parse(cached);
-        renderContacts();
+        render();
         return;
       }
     }
@@ -38721,7 +38867,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     try {
       contacts = await fetchContacts();
       localStorage.setItem(CONTACTS_CACHE_KEY, JSON.stringify(contacts));
-      renderContacts();
+      render();
     } catch (e) {
       listEl.innerHTML = `<p class="error">\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043A\u043E\u043D\u0442\u0430\u043A\u0442\u044B: ${escapeHtml(e.message)}</p>`;
     }
