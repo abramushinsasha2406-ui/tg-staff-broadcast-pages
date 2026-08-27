@@ -38418,6 +38418,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   // src/entry.js
   var CONTACTS_CACHE_KEY = "tg_contacts_cache";
   var MESSAGE_DRAFT_KEY = "tg_message_draft";
+  var FAVORITES_KEY = "tg_favorites";
   var el = (id) => document.getElementById(id);
   var screens = {
     setup: el("setup-screen"),
@@ -38433,6 +38434,38 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   var contacts = [];
   var selectedIds = /* @__PURE__ */ new Set();
   var searchQuery = "";
+  var activeTab = "all";
+  var favorites = loadFavorites();
+  function loadFavorites() {
+    try {
+      return JSON.parse(localStorage.getItem(FAVORITES_KEY)) || {};
+    } catch (e) {
+      return {};
+    }
+  }
+  function saveFavorites() {
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+  }
+  function isFavorite(id) {
+    return Object.prototype.hasOwnProperty.call(favorites, id);
+  }
+  function toggleFavorite(id) {
+    if (isFavorite(id)) delete favorites[id];
+    else favorites[id] = null;
+    saveFavorites();
+    renderContacts();
+  }
+  function setPriority(id, rawValue) {
+    const trimmed = rawValue.trim();
+    if (trimmed === "") {
+      favorites[id] = null;
+    } else {
+      const num = Number(trimmed);
+      favorites[id] = Number.isFinite(num) ? num : null;
+    }
+    saveFavorites();
+    renderContacts();
+  }
   el("setup-submit").addEventListener("click", () => {
     const apiId = el("setup-api-id").value.trim();
     const apiHash = el("setup-api-hash").value.trim();
@@ -38506,17 +38539,31 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   });
   el("refresh-contacts").addEventListener("click", () => loadContacts(true));
   el("select-all").addEventListener("click", () => {
-    filterContacts(contacts, searchQuery).forEach((c) => selectedIds.add(c.id));
+    getVisibleContacts().forEach((c) => selectedIds.add(c.id));
     renderContacts();
   });
   el("select-none").addEventListener("click", () => {
-    filterContacts(contacts, searchQuery).forEach((c) => selectedIds.delete(c.id));
+    getVisibleContacts().forEach((c) => selectedIds.delete(c.id));
     renderContacts();
   });
   el("contacts-search").addEventListener("input", () => {
     searchQuery = el("contacts-search").value.trim().toLowerCase();
     renderContacts();
   });
+  el("tab-all").addEventListener("click", () => {
+    activeTab = "all";
+    updateTabButtons();
+    renderContacts();
+  });
+  el("tab-favorites").addEventListener("click", () => {
+    activeTab = "favorites";
+    updateTabButtons();
+    renderContacts();
+  });
+  function updateTabButtons() {
+    el("tab-all").classList.toggle("active", activeTab === "all");
+    el("tab-favorites").classList.toggle("active", activeTab === "favorites");
+  }
   el("message-text").addEventListener("input", () => {
     localStorage.setItem(MESSAGE_DRAFT_KEY, el("message-text").value);
   });
@@ -38584,28 +38631,70 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
       return haystack.includes(query);
     });
   }
+  function sortByPriority(list) {
+    const withPriority = [];
+    const withoutPriority = [];
+    list.forEach((c) => {
+      const p = favorites[c.id];
+      if (typeof p === "number" && Number.isFinite(p)) withPriority.push(c);
+      else withoutPriority.push(c);
+    });
+    withPriority.sort((a, b) => favorites[a.id] - favorites[b.id]);
+    return withPriority.concat(withoutPriority);
+  }
+  function getVisibleContacts() {
+    let list = activeTab === "favorites" ? contacts.filter((c) => isFavorite(c.id)) : contacts;
+    list = filterContacts(list, searchQuery);
+    if (activeTab === "favorites") list = sortByPriority(list);
+    return list;
+  }
   function renderContacts() {
     const listEl = el("contacts-list");
     const emptyEl = el("contacts-empty");
-    const filtered = filterContacts(contacts, searchQuery);
+    const visible = getVisibleContacts();
     listEl.innerHTML = "";
-    emptyEl.classList.toggle("hidden", filtered.length > 0 || contacts.length === 0);
-    filtered.forEach((c) => {
-      const row = document.createElement("label");
+    if (visible.length === 0) {
+      emptyEl.textContent = activeTab === "favorites" && Object.keys(favorites).length === 0 ? "\u041F\u043E\u043A\u0430 \u043D\u0435\u0442 \u0438\u0437\u0431\u0440\u0430\u043D\u043D\u044B\u0445 \u2014 \u043E\u0442\u043C\u0435\u0442\u044C\u0442\u0435 \u043A\u043E\u043D\u0442\u0430\u043A\u0442\u044B \u0437\u0432\u0451\u0437\u0434\u043E\u0447\u043A\u043E\u0439 \u0432\u043E \u0432\u043A\u043B\u0430\u0434\u043A\u0435 \xAB\u0412\u0441\u0435 \u043A\u043E\u043D\u0442\u0430\u043A\u0442\u044B\xBB" : "\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E";
+    }
+    emptyEl.classList.toggle("hidden", visible.length > 0 || contacts.length === 0);
+    visible.forEach((c) => {
+      const row = document.createElement("div");
       row.className = "contact-row";
       const checked = selectedIds.has(c.id) ? "checked" : "";
+      const fav = isFavorite(c.id);
+      const priorityValue = typeof favorites[c.id] === "number" ? favorites[c.id] : "";
       row.innerHTML = `
       <input type="checkbox" data-id="${c.id}" ${checked} />
-      <div>
+      <div class="contact-info">
         <div class="contact-name">${escapeHtml(contactLabel(c))}</div>
         <div class="contact-sub">${escapeHtml(contactSub(c))}</div>
       </div>
+      <div class="contact-actions">
+        ${activeTab === "favorites" ? `<input type="number" class="priority-input" value="${priorityValue}" placeholder="\u2014" />` : ""}
+        <button class="star-btn ${fav ? "active" : ""}" type="button">${fav ? "\u2605" : "\u2606"}</button>
+      </div>
     `;
-      row.querySelector("input").addEventListener("change", (e) => {
+      const checkbox = row.querySelector('input[type="checkbox"]');
+      checkbox.addEventListener("change", (e) => {
         if (e.target.checked) selectedIds.add(c.id);
         else selectedIds.delete(c.id);
         updateSelectedCount();
       });
+      row.querySelector(".contact-info").addEventListener("click", () => {
+        checkbox.checked = !checkbox.checked;
+        checkbox.dispatchEvent(new Event("change"));
+      });
+      row.querySelector(".star-btn").addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleFavorite(c.id);
+      });
+      const priorityInput = row.querySelector(".priority-input");
+      if (priorityInput) {
+        priorityInput.addEventListener("click", (e) => e.stopPropagation());
+        priorityInput.addEventListener("change", (e) => {
+          setPriority(c.id, e.target.value);
+        });
+      }
       listEl.appendChild(row);
     });
     updateSelectedCount();
