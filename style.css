@@ -1,0 +1,203 @@
+:root {
+  color-scheme: light dark;
+  --bg: #0f0f10;
+  --panel: #1a1a1c;
+  --border: #2c2c2e;
+  --text: #f0f0f0;
+  --muted: #8a8a8e;
+  --accent: #3390ec;
+  --danger: #e05353;
+  --ok: #4caf50;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+body {
+  padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+}
+
+.hidden { display: none !important; }
+
+.screen {
+  max-width: 480px;
+  margin: 0 auto;
+  padding-top: 24px;
+  padding-bottom: 40px;
+}
+
+h1 { font-size: 22px; margin: 8px 0 16px; }
+h2 { font-size: 16px; margin: 0 0 10px; color: var(--muted); font-weight: 600; }
+
+.hint { color: var(--muted); font-size: 14px; line-height: 1.4; }
+.hint a { color: var(--accent); }
+
+label {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  margin: 14px 0 4px;
+}
+
+input[type="text"],
+input[type="tel"],
+input[type="password"],
+textarea {
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  padding: 12px 14px;
+  font-size: 16px;
+  outline: none;
+}
+
+input:focus, textarea:focus { border-color: var(--accent); }
+
+textarea { resize: vertical; font-family: inherit; }
+
+button {
+  border: none;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+button.primary {
+  background: var(--accent);
+  color: white;
+  border: none;
+  width: 100%;
+  padding: 14px;
+  font-size: 16px;
+  margin-top: 16px;
+}
+
+button.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.link-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  padding: 4px 0;
+  font-weight: 500;
+}
+
+#setup-submit, #login-send-code, #login-confirm-code, #login-confirm-password {
+  width: 100%;
+  margin-top: 14px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 14px;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 14px;
+  margin-top: 10px;
+  min-height: 1em;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+header h1 { margin: 0; }
+
+.block {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-top: 14px;
+}
+
+.block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.block-header h2 { margin: 0; }
+.block-header button { font-size: 13px; padding: 8px 12px; }
+
+.contacts-search {
+  margin-top: 10px;
+}
+
+.select-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 10px 0;
+}
+
+.muted { color: var(--muted); font-size: 13px; }
+
+.contacts-list {
+  max-height: 320px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+}
+
+.contact-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--border);
+}
+.contact-row:last-child { border-bottom: none; }
+.contact-row input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.contact-name { font-size: 15px; }
+.contact-sub { font-size: 12px; color: var(--muted); }
+
+#progress-block {
+  margin-top: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.progress-list {
+  max-height: 260px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+
+.progress-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 2px;
+  font-size: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.progress-row:last-child { border-bottom: none; }
+.status-sent { color: var(--ok); }
+.status-failed { color: var(--danger); }
+.status-pending { color: var(--muted); }

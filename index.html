@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Рассылка" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="style.css" />
+  <title>Рассылка персоналу</title>
+</head>
+<body>
+
+  <!-- Экран 1: настройка api_id/api_hash (один раз) -->
+  <section id="setup-screen" class="screen hidden">
+    <h1>Настройка</h1>
+    <p class="hint">
+      Получите бесплатно на
+      <a href="https://my.telegram.org" target="_blank" rel="noopener">my.telegram.org</a>
+      → API development tools.
+    </p>
+    <label>api_id</label>
+    <input type="text" id="setup-api-id" inputmode="numeric" placeholder="1234567" />
+    <label>api_hash</label>
+    <input type="text" id="setup-api-hash" placeholder="0123456789abcdef0123456789abcdef" />
+    <button id="setup-submit">Продолжить</button>
+    <p id="setup-error" class="error"></p>
+  </section>
+
+  <!-- Экран 2: вход по номеру телефона -->
+  <section id="login-screen" class="screen hidden">
+    <h1>Вход в Telegram</h1>
+    <div id="login-step-phone">
+      <label>Номер телефона</label>
+      <input type="tel" id="login-phone" placeholder="+79991234567" />
+      <button id="login-send-code">Получить код</button>
+    </div>
+    <div id="login-step-code" class="hidden">
+      <label>Код из Telegram</label>
+      <input type="text" id="login-code" inputmode="numeric" placeholder="12345" />
+      <button id="login-confirm-code">Войти</button>
+    </div>
+    <div id="login-step-password" class="hidden">
+      <label>Пароль двухфакторной защиты</label>
+      <input type="password" id="login-password" />
+      <button id="login-confirm-password">Войти</button>
+    </div>
+    <p id="login-error" class="error"></p>
+  </section>
+
+  <!-- Экран 3: основной -->
+  <section id="main-screen" class="screen hidden">
+    <header>
+      <h1>Рассылка персоналу</h1>
+      <button id="logout-btn" class="link-btn">Выйти</button>
+    </header>
+
+    <div class="block">
+      <div class="block-header">
+        <h2>Контакты</h2>
+        <button id="refresh-contacts">Обновить список</button>
+      </div>
+      <input type="text" id="contacts-search" class="contacts-search" placeholder="Поиск по имени, юзернейму, телефону" />
+      <div class="select-row">
+        <button id="select-all" class="link-btn">Выбрать всех</button>
+        <button id="select-none" class="link-btn">Снять выбор</button>
+        <span id="selected-count" class="muted"></span>
+      </div>
+      <div id="contacts-list" class="contacts-list"></div>
+      <p id="contacts-empty" class="muted hidden">Ничего не найдено</p>
+    </div>
+
+    <div class="block">
+      <h2>Сообщение</h2>
+      <textarea id="message-text" rows="3" placeholder="Например: 30?"></textarea>
+    </div>
+
+    <button id="send-btn" class="primary">Разослать выбранным</button>
+
+    <div id="progress-block" class="hidden">
+      <p id="progress-summary"></p>
+      <div id="progress-list" class="progress-list"></div>
+    </div>
+  </section>
+
+  <script src="bundle.js"></script>
+</body>
+</html>
