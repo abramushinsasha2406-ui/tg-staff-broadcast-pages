@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-title" content="Рассылка" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=1787952054" />
+  <link rel="stylesheet" href="style.css?v=1787957280" />
   <title>Рассылка персоналу</title>
 </head>
 <body>
@@ -59,30 +59,35 @@
 
     <div class="block">
       <div class="block-header">
-        <h2>Контакты</h2>
-        <button id="refresh-contacts">Обновить список</button>
-      </div>
-      <div class="tabs">
-        <button id="tab-all" class="tab-btn active" type="button">Все контакты</button>
-        <button id="tab-favorites" class="tab-btn" type="button">Избранные</button>
-        <button id="tab-sent" class="tab-btn" type="button">Отправленные</button>
-      </div>
-      <div id="chat-invite-block" class="chat-invite-block hidden">
-        <input type="text" id="chat-search" placeholder="Поиск чата по названию (куда приглашать)" />
-        <div id="chat-search-results" class="chat-search-results hidden"></div>
-        <div id="chat-selected" class="chat-selected hidden">
-          Приглашаем в: <strong id="chat-selected-title"></strong>
-          <button id="chat-selected-clear" class="link-btn" type="button">Изменить</button>
+        <h2>Контакты<span id="contacts-summary" class="muted"></span></h2>
+        <div class="block-header-actions">
+          <button id="toggle-contacts" class="link-btn" type="button">Свернуть</button>
+          <button id="refresh-contacts">Обновить список</button>
         </div>
       </div>
-      <input type="text" id="contacts-search" class="contacts-search" placeholder="Поиск по имени, юзернейму, телефону" />
-      <div id="select-row" class="select-row">
-        <button id="select-all" class="link-btn">Выбрать всех</button>
-        <button id="select-none" class="link-btn">Снять выбор</button>
-        <span id="selected-count" class="muted"></span>
+      <div id="contacts-body">
+        <div class="tabs">
+          <button id="tab-all" class="tab-btn active" type="button">Все контакты</button>
+          <button id="tab-favorites" class="tab-btn" type="button">Избранные</button>
+          <button id="tab-sent" class="tab-btn" type="button">Отправленные</button>
+        </div>
+        <div id="chat-invite-block" class="chat-invite-block hidden">
+          <input type="text" id="chat-search" placeholder="Поиск чата по названию (куда приглашать)" />
+          <div id="chat-search-results" class="chat-search-results hidden"></div>
+          <div id="chat-selected" class="chat-selected hidden">
+            Приглашаем в: <strong id="chat-selected-title"></strong>
+            <button id="chat-selected-clear" class="link-btn" type="button">Изменить</button>
+          </div>
+        </div>
+        <input type="text" id="contacts-search" class="contacts-search" placeholder="Поиск по имени, юзернейму, телефону" />
+        <div id="select-row" class="select-row">
+          <button id="select-all" class="link-btn">Выбрать всех</button>
+          <button id="select-none" class="link-btn">Снять выбор</button>
+          <span id="selected-count" class="muted"></span>
+        </div>
+        <div id="contacts-list" class="contacts-list"></div>
+        <p id="contacts-empty" class="muted hidden">Ничего не найдено</p>
       </div>
-      <div id="contacts-list" class="contacts-list"></div>
-      <p id="contacts-empty" class="muted hidden">Ничего не найдено</p>
     </div>
 
     <div class="block">
@@ -98,6 +103,6 @@
     </div>
   </section>
 
-  <script src="bundle.js?v=1787952054"></script>
+  <script src="bundle.js?v=1787957280"></script>
 </body>
 </html>

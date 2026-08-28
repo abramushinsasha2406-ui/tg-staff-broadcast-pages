@@ -38724,11 +38724,29 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     el("tab-favorites").classList.toggle("active", activeTab === "favorites");
     el("tab-sent").classList.toggle("active", activeTab === "sent");
   }
+  var contactsCollapsed = false;
+  el("toggle-contacts").addEventListener("click", () => {
+    contactsCollapsed = !contactsCollapsed;
+    updateContactsCollapsed();
+  });
+  function updateContactsCollapsed() {
+    el("contacts-body").classList.toggle("hidden", contactsCollapsed);
+    el("toggle-contacts").textContent = contactsCollapsed ? "\u0420\u0430\u0437\u0432\u0435\u0440\u043D\u0443\u0442\u044C" : "\u0421\u0432\u0435\u0440\u043D\u0443\u0442\u044C";
+  }
+  function updateContactsSummary() {
+    const summary = el("contacts-summary");
+    if (activeTab === "sent") {
+      summary.textContent = "";
+      return;
+    }
+    summary.textContent = selectedIds.size > 0 ? ` \xB7 \u0432\u044B\u0431\u0440\u0430\u043D\u043E ${selectedIds.size}` : "";
+  }
   function render() {
     el("select-row").classList.toggle("hidden", activeTab === "sent");
     el("refresh-contacts").classList.toggle("hidden", activeTab === "sent");
     el("chat-invite-block").classList.toggle("hidden", activeTab !== "sent");
     if (activeTab === "sent") {
+      updateContactsSummary();
       updateChatSelectedUI();
       renderSentList();
     } else {
@@ -38957,6 +38975,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     return list;
   }
   function renderContacts() {
+    updateContactsSummary();
     const listEl = el("contacts-list");
     const emptyEl = el("contacts-empty");
     listEl.classList.remove("hidden");

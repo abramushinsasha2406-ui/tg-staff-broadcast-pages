@@ -138,9 +138,23 @@ header h1 { margin: 0; }
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 .block-header h2 { margin: 0; }
 .block-header button { font-size: 13px; padding: 8px 12px; }
+
+.block-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#contacts-summary {
+  font-size: 13px;
+  font-weight: 400;
+  margin-left: 6px;
+}
 
 .tabs {
   display: flex;
