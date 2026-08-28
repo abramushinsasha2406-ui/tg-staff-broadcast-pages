@@ -38941,6 +38941,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   function renderContacts() {
     const listEl = el("contacts-list");
     const emptyEl = el("contacts-empty");
+    listEl.classList.remove("hidden");
     const visible = getVisibleContacts();
     listEl.innerHTML = "";
     if (visible.length === 0) {
@@ -38996,6 +38997,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   function renderSentList() {
     const listEl = el("contacts-list");
     const emptyEl = el("contacts-empty");
+    listEl.classList.remove("hidden");
     listEl.innerHTML = "";
     if (broadcastHistory.length === 0) {
       emptyEl.textContent = "\u041F\u043E\u043A\u0430 \u043D\u0435\u0442 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u043D\u044B\u0445 \u0440\u0430\u0441\u0441\u044B\u043B\u043E\u043A";
