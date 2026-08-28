@@ -38532,6 +38532,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   // src/entry.js
   var CONTACTS_CACHE_KEY = "tg_contacts_cache";
   var MESSAGE_DRAFT_KEY = "tg_message_draft";
+  var USE_NAME_KEY = "tg_use_name";
   var FAVORITES_KEY = "tg_favorites";
   var LAST_BROADCAST_KEY = "tg_last_broadcast";
   var BROADCAST_HISTORY_KEY = "tg_broadcast_history";
@@ -38933,10 +38934,13 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   el("message-text").addEventListener("input", () => {
     localStorage.setItem(MESSAGE_DRAFT_KEY, el("message-text").value);
   });
+  el("use-name-checkbox").addEventListener("change", () => {
+    localStorage.setItem(USE_NAME_KEY, el("use-name-checkbox").checked ? "1" : "0");
+  });
   el("send-btn").addEventListener("click", async () => {
-    const text = el("message-text").value.trim();
+    const rawText = el("message-text").value.trim();
     const targets = contacts.filter((c) => selectedIds.has(c.id));
-    if (!text) {
+    if (!rawText) {
       alert("\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u0442\u0435\u043A\u0441\u0442 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F");
       return;
     }
@@ -38945,6 +38949,8 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
       return;
     }
     if (!confirm(`\u0420\u0430\u0437\u043E\u0441\u043B\u0430\u0442\u044C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435 ${targets.length} \u043A\u043E\u043D\u0442\u0430\u043A\u0442\u0430\u043C?`)) return;
+    const useName = el("use-name-checkbox").checked;
+    const text = useName && !/\{name\}/i.test(rawText) ? `{name}, ${rawText}` : rawText;
     el("send-btn").disabled = true;
     const progressBlock = el("progress-block");
     const progressList = el("progress-list");
@@ -38988,7 +38994,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     progressSummary.textContent = `\u0413\u043E\u0442\u043E\u0432\u043E: \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u043E ${sent}, \u043E\u0448\u0438\u0431\u043E\u043A ${failed} \u0438\u0437 ${targets.length}`;
     el("send-btn").disabled = false;
     const sentAt = Date.now();
-    addBroadcastToHistory({ id: sentAt, text, sentAt, items: sentItems });
+    addBroadcastToHistory({ id: sentAt, text: rawText, sentAt, items: sentItems });
     openBatchIds = /* @__PURE__ */ new Set([sentAt]);
   });
   function contactLabel(c) {
@@ -39317,6 +39323,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     showScreen("main");
     const draft = localStorage.getItem(MESSAGE_DRAFT_KEY);
     if (draft) el("message-text").value = draft;
+    el("use-name-checkbox").checked = localStorage.getItem(USE_NAME_KEY) === "1";
     await loadContacts(false);
   }
   async function boot() {
