@@ -38455,6 +38455,40 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     const incoming = (history.messages || []).filter((m) => m.out === false && m.message);
     return incoming.length > 0 ? incoming[0].message : null;
   }
+  async function fetchGroupChats() {
+    const c = getClient();
+    await c.connect();
+    const dialogs = await c.getDialogs({ limit: 200 });
+    return dialogs.filter((d) => d.isGroup).map((d) => ({
+      id: d.entity.id.toString(),
+      accessHash: d.entity.accessHash ? d.entity.accessHash.toString() : "0",
+      title: d.title || "\u0411\u0435\u0437 \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u044F",
+      isChannel: d.entity.className === "Channel"
+    }));
+  }
+  async function inviteToChat(chat, contact) {
+    const c = getClient();
+    await c.connect();
+    const user = new import_telegram2.Api.InputUser({
+      userId: BigInt(contact.id),
+      accessHash: BigInt(contact.accessHash)
+    });
+    if (chat.isChannel) {
+      const channel = new import_telegram2.Api.InputChannel({
+        channelId: BigInt(chat.id),
+        accessHash: BigInt(chat.accessHash)
+      });
+      await c.invoke(new import_telegram2.Api.channels.InviteToChannel({ channel, users: [user] }));
+    } else {
+      await c.invoke(
+        new import_telegram2.Api.messages.AddChatUser({
+          chatId: BigInt(chat.id),
+          userId: user,
+          fwdLimit: 100
+        })
+      );
+    }
+  }
 
   // src/entry.js
   var CONTACTS_CACHE_KEY = "tg_contacts_cache";
@@ -38463,6 +38497,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   var LAST_BROADCAST_KEY = "tg_last_broadcast";
   var BROADCAST_HISTORY_KEY = "tg_broadcast_history";
   var NOTES_KEY = "tg_notes";
+  var SELECTED_CHAT_KEY = "tg_invite_chat";
   var MAX_HISTORY = 50;
   var el = (id) => document.getElementById(id);
   var screens = {
@@ -38485,6 +38520,19 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   var notes = loadNotes();
   var openBatchIds = new Set(broadcastHistory[0] ? [broadcastHistory[0].id] : []);
   var openNoteIds = /* @__PURE__ */ new Set();
+  var selectedChat = loadSelectedChat();
+  var groupChats = null;
+  function loadSelectedChat() {
+    try {
+      return JSON.parse(localStorage.getItem(SELECTED_CHAT_KEY)) || null;
+    } catch (e) {
+      return null;
+    }
+  }
+  function saveSelectedChat() {
+    if (selectedChat) localStorage.setItem(SELECTED_CHAT_KEY, JSON.stringify(selectedChat));
+    else localStorage.removeItem(SELECTED_CHAT_KEY);
+  }
   function loadBroadcastHistory() {
     try {
       const raw = localStorage.getItem(BROADCAST_HISTORY_KEY);
@@ -38665,8 +38713,87 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   function render() {
     el("select-row").classList.toggle("hidden", activeTab === "sent");
     el("refresh-contacts").classList.toggle("hidden", activeTab === "sent");
-    if (activeTab === "sent") renderSentList();
-    else renderContacts();
+    el("chat-invite-block").classList.toggle("hidden", activeTab !== "sent");
+    if (activeTab === "sent") {
+      updateChatSelectedUI();
+      renderSentList();
+    } else {
+      renderContacts();
+    }
+  }
+  el("chat-search").addEventListener("input", async () => {
+    const q = el("chat-search").value.trim().toLowerCase();
+    if (!q) {
+      el("chat-search-results").classList.add("hidden");
+      return;
+    }
+    let chats;
+    try {
+      if (groupChats === null) groupChats = await fetchGroupChats();
+      chats = groupChats;
+    } catch (e) {
+      el("chat-search-results").classList.remove("hidden");
+      el("chat-search-results").innerHTML = `<div class="chat-search-item">\u041E\u0448\u0438\u0431\u043A\u0430: ${escapeHtml(e.message)}</div>`;
+      return;
+    }
+    const matches = chats.filter((chat) => chat.title.toLowerCase().includes(q)).slice(0, 15);
+    renderChatSearchResults(matches);
+  });
+  function renderChatSearchResults(matches) {
+    const box = el("chat-search-results");
+    box.innerHTML = "";
+    if (matches.length === 0) {
+      box.classList.add("hidden");
+      return;
+    }
+    box.classList.remove("hidden");
+    matches.forEach((chat) => {
+      const item = document.createElement("div");
+      item.className = "chat-search-item";
+      item.textContent = chat.title;
+      item.addEventListener("click", () => selectChat(chat));
+      box.appendChild(item);
+    });
+  }
+  function selectChat(chat) {
+    selectedChat = chat;
+    saveSelectedChat();
+    el("chat-search").value = "";
+    el("chat-search-results").classList.add("hidden");
+    el("chat-search-results").innerHTML = "";
+    updateChatSelectedUI();
+    renderSentList();
+  }
+  function updateChatSelectedUI() {
+    const box = el("chat-selected");
+    if (selectedChat) {
+      box.classList.remove("hidden");
+      el("chat-selected-title").textContent = selectedChat.title;
+    } else {
+      box.classList.add("hidden");
+    }
+  }
+  el("chat-selected-clear").addEventListener("click", () => {
+    selectedChat = null;
+    saveSelectedChat();
+    updateChatSelectedUI();
+    renderSentList();
+  });
+  async function inviteContact(chat, it, btn) {
+    if (!chat) return;
+    btn.disabled = true;
+    btn.textContent = "\u041F\u0440\u0438\u0433\u043B\u0430\u0448\u0430\u044E\u2026";
+    try {
+      await inviteToChat(chat, it);
+      it.invited = true;
+      it.invitedTo = chat.title;
+      saveBroadcastHistory();
+      renderSentList();
+    } catch (e) {
+      alert("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u0438\u0433\u043B\u0430\u0441\u0438\u0442\u044C: " + e.message);
+      btn.disabled = false;
+      btn.textContent = "\u041F\u0440\u0438\u0433\u043B\u0430\u0441\u0438\u0442\u044C";
+    }
   }
   async function checkStatuses(batch, btn) {
     btn.disabled = true;
@@ -38913,6 +39040,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
       statusHtml = `<span class="status-badge status-unknown">\u043D\u0435 \u043F\u0440\u043E\u0432\u0435\u0440\u0435\u043D\u043E</span>`;
     }
     const replyHtml = it.reply ? `<div class="reply-text">\u041E\u0442\u0432\u0435\u0442: ${escapeHtml(it.reply)}</div>` : "";
+    const inviteHtml = it.invited ? `<span class="status-badge status-invited">\u0432 \u0447\u0430\u0442\u0435: ${escapeHtml(it.invitedTo || "")}</span>` : `<button class="invite-btn" type="button" ${!selectedChat ? "disabled" : ""}>\u041F\u0440\u0438\u0433\u043B\u0430\u0441\u0438\u0442\u044C</button>`;
     row.innerHTML = `
     <div class="contact-info">
       <div class="contact-name">${escapeHtml(contactLabel(it))}</div>
@@ -38922,9 +39050,17 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     </div>
     <div class="contact-actions">
       ${statusHtml}
+      ${inviteHtml}
       <button class="note-btn ${notes[it.id] ? "active" : ""}" type="button">\u270E</button>
     </div>
   `;
+    const inviteBtn = row.querySelector(".invite-btn");
+    if (inviteBtn) {
+      inviteBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        inviteContact(selectedChat, it, inviteBtn);
+      });
+    }
     wireNoteControls(row, it.id, renderSentList);
     return row;
   }

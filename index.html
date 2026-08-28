@@ -67,6 +67,14 @@
         <button id="tab-favorites" class="tab-btn" type="button">Избранные</button>
         <button id="tab-sent" class="tab-btn" type="button">Отправленные</button>
       </div>
+      <div id="chat-invite-block" class="chat-invite-block hidden">
+        <input type="text" id="chat-search" placeholder="Поиск чата по названию (куда приглашать)" />
+        <div id="chat-search-results" class="chat-search-results hidden"></div>
+        <div id="chat-selected" class="chat-selected hidden">
+          Приглашаем в: <strong id="chat-selected-title"></strong>
+          <button id="chat-selected-clear" class="link-btn" type="button">Изменить</button>
+        </div>
+      </div>
       <input type="text" id="contacts-search" class="contacts-search" placeholder="Поиск по имени, юзернейму, телефону" />
       <div id="select-row" class="select-row">
         <button id="select-all" class="link-btn">Выбрать всех</button>

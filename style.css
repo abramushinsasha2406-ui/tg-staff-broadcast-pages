@@ -324,6 +324,56 @@ header h1 { margin: 0; }
   padding: 8px 10px;
 }
 
+.chat-invite-block {
+  margin-top: 10px;
+  position: relative;
+}
+
+.chat-search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-top: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.chat-search-item {
+  padding: 10px 14px;
+  font-size: 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.chat-search-item:last-child { border-bottom: none; }
+.chat-search-item:hover { background: var(--bg); }
+
+.chat-selected {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.chat-selected strong { color: var(--text); }
+
+.invite-btn {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: white;
+  border: none;
+}
+.invite-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.status-invited { background: rgba(51, 144, 236, 0.15); color: var(--accent); }
+
 #progress-block {
   margin-top: 16px;
   background: var(--panel);
