@@ -38473,34 +38473,58 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
       isChannel: d.entity.className === "Channel"
     }));
   }
-  async function inviteToChat(chat, contact) {
+  async function performInvite(chat, contact) {
     const c = getClient();
     await c.connect();
     const user = new import_telegram2.Api.InputUser({
       userId: BigInt(contact.id),
       accessHash: BigInt(contact.accessHash)
     });
+    if (chat.isChannel) {
+      const channel = new import_telegram2.Api.InputChannel({
+        channelId: BigInt(chat.id),
+        accessHash: BigInt(chat.accessHash)
+      });
+      await c.invoke(new import_telegram2.Api.channels.InviteToChannel({ channel, users: [user] }));
+    } else {
+      await c.invoke(
+        new import_telegram2.Api.messages.AddChatUser({
+          chatId: BigInt(chat.id),
+          userId: user,
+          fwdLimit: 100
+        })
+      );
+    }
+  }
+  async function inviteToChat(chat, contact) {
     try {
-      if (chat.isChannel) {
-        const channel = new import_telegram2.Api.InputChannel({
-          channelId: BigInt(chat.id),
-          accessHash: BigInt(chat.accessHash)
-        });
-        await c.invoke(new import_telegram2.Api.channels.InviteToChannel({ channel, users: [user] }));
-      } else {
-        await c.invoke(
-          new import_telegram2.Api.messages.AddChatUser({
-            chatId: BigInt(chat.id),
-            userId: user,
-            fwdLimit: 100
-          })
-        );
-      }
+      await performInvite(chat, contact);
     } catch (e) {
       if (e instanceof import_telegram2.errors.FloodWaitError) {
         throw new Error(`Telegram \u043F\u0440\u043E\u0441\u0438\u0442 \u043F\u043E\u0434\u043E\u0436\u0434\u0430\u0442\u044C ${e.seconds} \u0441\u0435\u043A. \u043F\u0435\u0440\u0435\u0434 \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u043C \u043F\u0440\u0438\u0433\u043B\u0430\u0448\u0435\u043D\u0438\u0435\u043C`);
       }
       throw e;
+    }
+  }
+  async function inviteManyToChat(chat, contacts2, { minDelay = 3, maxDelay = 6, onProgress } = {}) {
+    for (let i = 0; i < contacts2.length; i++) {
+      const contact = contacts2[i];
+      try {
+        await performInvite(chat, contact);
+        onProgress?.({ contact, status: "invited", index: i, total: contacts2.length });
+      } catch (e) {
+        if (e instanceof import_telegram2.errors.FloodWaitError) {
+          const waitSec = e.seconds + 2;
+          onProgress?.({ contact, status: "floodwait", seconds: waitSec, index: i, total: contacts2.length });
+          await sleep(waitSec * 1e3);
+          i--;
+          continue;
+        }
+        onProgress?.({ contact, status: "failed", error: e.message, index: i, total: contacts2.length });
+      }
+      if (i < contacts2.length - 1) {
+        await sleep(randomDelayMs(minDelay, maxDelay));
+      }
     }
   }
 
@@ -38536,6 +38560,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   var openNoteIds = /* @__PURE__ */ new Set();
   var selectedChat = loadSelectedChat();
   var groupChats = null;
+  var inviteSelection = /* @__PURE__ */ new Set();
   function loadSelectedChat() {
     try {
       return JSON.parse(localStorage.getItem(SELECTED_CHAT_KEY)) || null;
@@ -38801,9 +38826,11 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   function selectChat(chat) {
     selectedChat = chat;
     saveSelectedChat();
+    inviteSelection.clear();
     el("chat-search").value = "";
     closeChatDropdown();
     updateChatSelectedUI();
+    renderSentList();
   }
   function updateChatSelectedUI() {
     const box = el("chat-selected");
@@ -38817,6 +38844,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   el("chat-selected-clear").addEventListener("click", () => {
     selectedChat = null;
     saveSelectedChat();
+    inviteSelection.clear();
     updateChatSelectedUI();
     renderSentList();
   });
@@ -39081,16 +39109,71 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
           checkStatuses(batch, checkBtn);
         });
         actions.appendChild(checkBtn);
+        const selectedInBatch = countSelectedInBatch(batch.id);
+        const bulkInviteBtn = document.createElement("button");
+        bulkInviteBtn.type = "button";
+        bulkInviteBtn.className = "link-btn";
+        bulkInviteBtn.textContent = selectedInBatch > 0 ? `\u041F\u0440\u0438\u0433\u043B\u0430\u0441\u0438\u0442\u044C \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u044B\u0445 (${selectedInBatch})` : "\u041F\u0440\u0438\u0433\u043B\u0430\u0441\u0438\u0442\u044C \u0432\u044B\u0431\u0440\u0430\u043D\u043D\u044B\u0445";
+        bulkInviteBtn.disabled = !selectedChat || selectedInBatch === 0;
+        bulkInviteBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          bulkInviteBatch(batch, bulkInviteBtn);
+        });
+        actions.appendChild(bulkInviteBtn);
         card.appendChild(actions);
         const body = document.createElement("div");
         body.className = "batch-body";
-        items.forEach((it) => body.appendChild(buildSentRow(it)));
+        items.forEach((it) => body.appendChild(buildSentRow(it, batch.id)));
         card.appendChild(body);
       }
       listEl.appendChild(card);
     });
   }
-  function buildSentRow(it) {
+  function countSelectedInBatch(batchId) {
+    let n = 0;
+    inviteSelection.forEach((key) => {
+      if (key.startsWith(batchId + ":")) n++;
+    });
+    return n;
+  }
+  async function bulkInviteBatch(batch, btn) {
+    if (!selectedChat) return;
+    const prefix = batch.id + ":";
+    const ids = [...inviteSelection].filter((k) => k.startsWith(prefix)).map((k) => k.slice(prefix.length));
+    const targets = batch.items.filter((it) => ids.includes(it.id));
+    if (targets.length === 0) return;
+    if (!confirm(`\u041F\u0440\u0438\u0433\u043B\u0430\u0441\u0438\u0442\u044C ${targets.length} \u0447\u0435\u043B. \u0432 \xAB${selectedChat.title}\xBB?`)) return;
+    btn.disabled = true;
+    btn.textContent = "\u041F\u0440\u0438\u0433\u043B\u0430\u0448\u0430\u044E\u2026";
+    let invited = 0;
+    let failed = 0;
+    try {
+      await inviteManyToChat(selectedChat, targets, {
+        onProgress: ({ contact, status, seconds }) => {
+          if (status === "floodwait") {
+            btn.textContent = `\u041F\u0430\u0443\u0437\u0430 ${seconds}\u0441\u2026`;
+            return;
+          }
+          if (status === "invited") {
+            invited++;
+            normalizeInvites(contact);
+            if (!contact.invites.some((inv) => inv.title === selectedChat.title)) {
+              contact.invites.push({ title: selectedChat.title, at: Date.now() });
+            }
+          } else {
+            failed++;
+          }
+          btn.textContent = "\u041F\u0440\u0438\u0433\u043B\u0430\u0448\u0430\u044E\u2026";
+        }
+      });
+    } finally {
+      ids.forEach((id) => inviteSelection.delete(prefix + id));
+      saveBroadcastHistory();
+      renderSentList();
+      if (failed > 0) alert(`\u041F\u0440\u0438\u0433\u043B\u0430\u0448\u0435\u043D\u043E: ${invited}, \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C: ${failed}`);
+    }
+  }
+  function buildSentRow(it, batchId) {
     const row = document.createElement("div");
     row.className = "contact-row sent-row";
     let statusHtml;
@@ -39106,12 +39189,17 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     const replyHtml = it.reply ? `<div class="reply-text">\u041E\u0442\u0432\u0435\u0442: ${escapeHtml(it.reply)}</div>` : "";
     normalizeInvites(it);
     const invitesHtml = it.invites.map((inv) => `<span class="status-badge status-invited">\u0432 \u0447\u0430\u0442\u0435: ${escapeHtml(inv.title)}</span>`).join("");
+    const selectKey = batchId + ":" + it.id;
+    const checked = inviteSelection.has(selectKey) ? "checked" : "";
     row.innerHTML = `
-    <div class="contact-info">
-      <div class="contact-name">${escapeHtml(contactLabel(it))}</div>
-      <div class="contact-sub">${escapeHtml(contactSub(it))}</div>
-      ${replyHtml}
-      ${noteFragmentHtml(it.id)}
+    <div class="sent-row-main">
+      <input type="checkbox" class="invite-select" ${checked} title="\u0412\u044B\u0431\u0440\u0430\u0442\u044C \u0434\u043B\u044F \u043C\u0430\u0441\u0441\u043E\u0432\u043E\u0433\u043E \u043F\u0440\u0438\u0433\u043B\u0430\u0448\u0435\u043D\u0438\u044F" />
+      <div class="contact-info">
+        <div class="contact-name">${escapeHtml(contactLabel(it))}</div>
+        <div class="contact-sub">${escapeHtml(contactSub(it))}</div>
+        ${replyHtml}
+        ${noteFragmentHtml(it.id)}
+      </div>
     </div>
     <div class="contact-actions">
       ${statusHtml}
@@ -39120,6 +39208,12 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
       <button class="note-btn ${notes[it.id] ? "active" : ""}" type="button">\u270E</button>
     </div>
   `;
+    const selectCb = row.querySelector(".invite-select");
+    selectCb.addEventListener("change", (e) => {
+      if (e.target.checked) inviteSelection.add(selectKey);
+      else inviteSelection.delete(selectKey);
+      renderSentList();
+    });
     const inviteBtn = row.querySelector(".invite-btn");
     if (inviteBtn) {
       inviteBtn.addEventListener("click", (e) => {

@@ -102,6 +102,11 @@ button.link-btn {
   font-weight: 500;
 }
 
+button.link-btn:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
 #setup-submit, #login-send-code, #login-confirm-code, #login-confirm-password {
   width: 100%;
   margin-top: 14px;
@@ -241,8 +246,17 @@ header h1 { margin: 0; }
   flex-wrap: wrap;
   align-items: flex-start;
 }
-.sent-row .contact-info {
+.sent-row-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   flex-basis: 100%;
+}
+.sent-row-main input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 .sent-row .contact-actions {
   margin-top: 8px;
@@ -310,6 +324,9 @@ header h1 { margin: 0; }
 }
 
 .batch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
   padding: 0 14px 12px;
 }
 
