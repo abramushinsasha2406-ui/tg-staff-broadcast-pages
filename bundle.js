@@ -38721,6 +38721,9 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
       renderContacts();
     }
   }
+  el("chat-search").addEventListener("focus", () => {
+    groupChats = null;
+  });
   el("chat-search").addEventListener("input", async () => {
     const q = el("chat-search").value.trim().toLowerCase();
     if (!q) {
