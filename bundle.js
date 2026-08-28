@@ -1568,9 +1568,9 @@
         }
         return this;
       };
-      var errors = {};
+      var errors2 = {};
       function E(sym, getMessage, Base) {
-        errors[sym] = class NodeError extends Base {
+        errors2[sym] = class NodeError extends Base {
           constructor() {
             super();
             Object.defineProperty(this, "message", {
@@ -1662,24 +1662,24 @@
           } else {
             range = `>= ${min}${n} and <= ${max}${n}`;
           }
-          throw new errors.ERR_OUT_OF_RANGE("value", range, value);
+          throw new errors2.ERR_OUT_OF_RANGE("value", range, value);
         }
         checkBounds(buf, offset, byteLength2);
       }
       function validateNumber(value, name) {
         if (typeof value !== "number") {
-          throw new errors.ERR_INVALID_ARG_TYPE(name, "number", value);
+          throw new errors2.ERR_INVALID_ARG_TYPE(name, "number", value);
         }
       }
       function boundsError(value, length, type) {
         if (Math.floor(value) !== value) {
           validateNumber(value, type);
-          throw new errors.ERR_OUT_OF_RANGE(type || "offset", "an integer", value);
+          throw new errors2.ERR_OUT_OF_RANGE(type || "offset", "an integer", value);
         }
         if (length < 0) {
-          throw new errors.ERR_BUFFER_OUT_OF_BOUNDS();
+          throw new errors2.ERR_BUFFER_OUT_OF_BOUNDS();
         }
-        throw new errors.ERR_OUT_OF_RANGE(
+        throw new errors2.ERR_OUT_OF_RANGE(
           type || "offset",
           `>= ${type ? 1 : 0} and <= ${length}`,
           value
@@ -38262,8 +38262,8 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
       } });
       var utils = __importStar2(require_Utils());
       exports.utils = utils;
-      var errors = __importStar2(require_errors());
-      exports.errors = errors;
+      var errors2 = __importStar2(require_errors());
+      exports.errors = errors2;
       var sessions = __importStar2(require_sessions());
       exports.sessions = sessions;
       var extensions = __importStar2(require_extensions());
@@ -38407,6 +38407,13 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
         const sent = await c.sendMessage(entity, { message: text });
         onProgress?.({ contact, status: "sent", messageId: sent.id, index: i, total: contacts2.length });
       } catch (e) {
+        if (e instanceof import_telegram2.errors.FloodWaitError) {
+          const waitSec = e.seconds + 2;
+          onProgress?.({ contact, status: "floodwait", seconds: waitSec, index: i, total: contacts2.length });
+          await sleep(waitSec * 1e3);
+          i--;
+          continue;
+        }
         onProgress?.({ contact, status: "failed", error: e.message, index: i, total: contacts2.length });
       }
       if (i < contacts2.length - 1) {
@@ -38473,20 +38480,27 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
       userId: BigInt(contact.id),
       accessHash: BigInt(contact.accessHash)
     });
-    if (chat.isChannel) {
-      const channel = new import_telegram2.Api.InputChannel({
-        channelId: BigInt(chat.id),
-        accessHash: BigInt(chat.accessHash)
-      });
-      await c.invoke(new import_telegram2.Api.channels.InviteToChannel({ channel, users: [user] }));
-    } else {
-      await c.invoke(
-        new import_telegram2.Api.messages.AddChatUser({
-          chatId: BigInt(chat.id),
-          userId: user,
-          fwdLimit: 100
-        })
-      );
+    try {
+      if (chat.isChannel) {
+        const channel = new import_telegram2.Api.InputChannel({
+          channelId: BigInt(chat.id),
+          accessHash: BigInt(chat.accessHash)
+        });
+        await c.invoke(new import_telegram2.Api.channels.InviteToChannel({ channel, users: [user] }));
+      } else {
+        await c.invoke(
+          new import_telegram2.Api.messages.AddChatUser({
+            chatId: BigInt(chat.id),
+            userId: user,
+            fwdLimit: 100
+          })
+        );
+      }
+    } catch (e) {
+      if (e instanceof import_telegram2.errors.FloodWaitError) {
+        throw new Error(`Telegram \u043F\u0440\u043E\u0441\u0438\u0442 \u043F\u043E\u0434\u043E\u0436\u0434\u0430\u0442\u044C ${e.seconds} \u0441\u0435\u043A. \u043F\u0435\u0440\u0435\u0434 \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u043C \u043F\u0440\u0438\u0433\u043B\u0430\u0448\u0435\u043D\u0438\u0435\u043C`);
+      }
+      throw e;
     }
   }
 
@@ -38880,9 +38894,15 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     let failed = 0;
     const sentItems = [];
     await broadcastToContacts(targets, text, {
-      onProgress: ({ contact, status, messageId, index, total }) => {
+      onProgress: ({ contact, status, messageId, seconds, index, total }) => {
         const row = rows.get(contact.id);
         const statusSpan = row.querySelector("span:last-child");
+        if (status === "floodwait") {
+          statusSpan.textContent = `\u043F\u0430\u0443\u0437\u0430 ${seconds}\u0441`;
+          statusSpan.className = "status-pending";
+          progressSummary.textContent = `Telegram \u043F\u0440\u043E\u0441\u0438\u0442 \u043F\u043E\u0434\u043E\u0436\u0434\u0430\u0442\u044C ${seconds} \u0441\u0435\u043A. \u043F\u0435\u0440\u0435\u0434 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u043E\u0439 ${contactLabel(contact)} \u2014 \u0436\u0434\u0451\u043C\u2026`;
+          return;
+        }
         if (status === "sent") {
           statusSpan.textContent = "\u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u043E";
           statusSpan.className = "status-sent";
