@@ -334,13 +334,14 @@ header h1 { margin: 0; }
   top: 100%;
   left: 0;
   right: 0;
-  z-index: 5;
+  z-index: 20;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 10px;
   margin-top: 4px;
-  max-height: 220px;
+  max-height: 200px;
   overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
 .chat-search-item {

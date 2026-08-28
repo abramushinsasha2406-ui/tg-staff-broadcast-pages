@@ -38782,20 +38782,32 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     updateChatSelectedUI();
     renderSentList();
   });
+  function normalizeInvites(it) {
+    if (!it.invites) {
+      it.invites = it.invited ? [{ title: it.invitedTo || "\u043D\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043D\u044B\u0439 \u0447\u0430\u0442" }] : [];
+      delete it.invited;
+      delete it.invitedTo;
+    }
+  }
   async function inviteContact(chat, it, btn) {
     if (!chat) return;
     btn.disabled = true;
     btn.textContent = "\u041F\u0440\u0438\u0433\u043B\u0430\u0448\u0430\u044E\u2026";
     try {
       await inviteToChat(chat, it);
-      it.invited = true;
-      it.invitedTo = chat.title;
+      normalizeInvites(it);
+      if (!it.invites.some((inv) => inv.title === chat.title)) {
+        it.invites.push({ title: chat.title, at: Date.now() });
+      }
       saveBroadcastHistory();
       renderSentList();
     } catch (e) {
       alert("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u0438\u0433\u043B\u0430\u0441\u0438\u0442\u044C: " + e.message);
-      btn.disabled = false;
-      btn.textContent = "\u041F\u0440\u0438\u0433\u043B\u0430\u0441\u0438\u0442\u044C";
+    } finally {
+      if (btn.isConnected) {
+        btn.disabled = false;
+        btn.textContent = "\u041F\u0440\u0438\u0433\u043B\u0430\u0441\u0438\u0442\u044C";
+      }
     }
   }
   async function checkStatuses(batch, btn) {
@@ -39043,7 +39055,8 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
       statusHtml = `<span class="status-badge status-unknown">\u043D\u0435 \u043F\u0440\u043E\u0432\u0435\u0440\u0435\u043D\u043E</span>`;
     }
     const replyHtml = it.reply ? `<div class="reply-text">\u041E\u0442\u0432\u0435\u0442: ${escapeHtml(it.reply)}</div>` : "";
-    const inviteHtml = it.invited ? `<span class="status-badge status-invited">\u0432 \u0447\u0430\u0442\u0435: ${escapeHtml(it.invitedTo || "")}</span>` : `<button class="invite-btn" type="button" ${!selectedChat ? "disabled" : ""}>\u041F\u0440\u0438\u0433\u043B\u0430\u0441\u0438\u0442\u044C</button>`;
+    normalizeInvites(it);
+    const invitesHtml = it.invites.map((inv) => `<span class="status-badge status-invited">\u0432 \u0447\u0430\u0442\u0435: ${escapeHtml(inv.title)}</span>`).join("");
     row.innerHTML = `
     <div class="contact-info">
       <div class="contact-name">${escapeHtml(contactLabel(it))}</div>
@@ -39053,7 +39066,8 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     </div>
     <div class="contact-actions">
       ${statusHtml}
-      ${inviteHtml}
+      ${invitesHtml}
+      <button class="invite-btn" type="button" ${!selectedChat ? "disabled" : ""}>\u041F\u0440\u0438\u0433\u043B\u0430\u0441\u0438\u0442\u044C</button>
       <button class="note-btn ${notes[it.id] ? "active" : ""}" type="button">\u270E</button>
     </div>
   `;
