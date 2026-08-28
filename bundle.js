@@ -38561,6 +38561,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   var selectedChat = loadSelectedChat();
   var groupChats = null;
   var inviteSelection = /* @__PURE__ */ new Set();
+  var sentFilter = "all";
   function loadSelectedChat() {
     try {
       return JSON.parse(localStorage.getItem(SELECTED_CHAT_KEY)) || null;
@@ -38749,6 +38750,26 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     el("tab-favorites").classList.toggle("active", activeTab === "favorites");
     el("tab-sent").classList.toggle("active", activeTab === "sent");
   }
+  el("filter-all").addEventListener("click", () => {
+    sentFilter = "all";
+    updateSentFilterButtons();
+    renderSentList();
+  });
+  el("filter-replied").addEventListener("click", () => {
+    sentFilter = "replied";
+    updateSentFilterButtons();
+    renderSentList();
+  });
+  el("filter-pending").addEventListener("click", () => {
+    sentFilter = "pending";
+    updateSentFilterButtons();
+    renderSentList();
+  });
+  function updateSentFilterButtons() {
+    el("filter-all").classList.toggle("active", sentFilter === "all");
+    el("filter-replied").classList.toggle("active", sentFilter === "replied");
+    el("filter-pending").classList.toggle("active", sentFilter === "pending");
+  }
   var contactsCollapsed = false;
   el("toggle-contacts").addEventListener("click", () => {
     contactsCollapsed = !contactsCollapsed;
@@ -38770,6 +38791,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     el("select-row").classList.toggle("hidden", activeTab === "sent");
     el("refresh-contacts").classList.toggle("hidden", activeTab === "sent");
     el("chat-invite-block").classList.toggle("hidden", activeTab !== "sent");
+    el("sent-filter-row").classList.toggle("hidden", activeTab !== "sent");
     if (activeTab === "sent") {
       updateContactsSummary();
       updateChatSelectedUI();
@@ -38978,6 +39000,12 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     if (c.phone) parts.push("+" + c.phone);
     return parts.join(" \xB7 ");
   }
+  function applySentFilters(items) {
+    let list = searchQuery ? filterContacts(items, searchQuery) : items;
+    if (sentFilter === "replied") list = list.filter((it) => !!it.reply);
+    else if (sentFilter === "pending") list = list.filter((it) => !it.reply);
+    return list;
+  }
   function filterContacts(list, query) {
     if (!query) return list;
     return list.filter((c) => {
@@ -39073,8 +39101,8 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     }
     const visibleBatches = broadcastHistory.map((batch) => ({
       batch,
-      items: searchQuery ? filterContacts(batch.items, searchQuery) : batch.items
-    })).filter(({ items }) => !searchQuery || items.length > 0);
+      items: applySentFilters(batch.items)
+    })).filter(({ items }) => items.length > 0);
     emptyEl.classList.toggle("hidden", visibleBatches.length > 0);
     if (visibleBatches.length === 0) emptyEl.textContent = "\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E";
     visibleBatches.forEach(({ batch, items }) => {

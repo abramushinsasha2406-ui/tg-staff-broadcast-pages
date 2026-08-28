@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-title" content="Рассылка" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=1787957928" />
+  <link rel="stylesheet" href="style.css?v=1787958223" />
   <title>Рассылка персоналу</title>
 </head>
 <body>
@@ -78,6 +78,11 @@
             <button id="chat-selected-clear" class="link-btn" type="button">Изменить</button>
           </div>
         </div>
+        <div id="sent-filter-row" class="tabs hidden">
+          <button id="filter-all" class="tab-btn active" type="button">Все</button>
+          <button id="filter-replied" class="tab-btn" type="button">Ответили</button>
+          <button id="filter-pending" class="tab-btn" type="button">Без ответа</button>
+        </div>
         <input type="text" id="contacts-search" class="contacts-search" placeholder="Поиск по имени, юзернейму, телефону" />
         <div id="select-row" class="select-row">
           <button id="select-all" class="link-btn">Выбрать всех</button>
@@ -103,6 +108,6 @@
     </div>
   </section>
 
-  <script src="bundle.js?v=1787957928"></script>
+  <script src="bundle.js?v=1787958223"></script>
 </body>
 </html>
