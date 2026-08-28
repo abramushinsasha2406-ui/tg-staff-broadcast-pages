@@ -208,8 +208,23 @@ header h1 { margin: 0; }
 .contact-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   flex-shrink: 0;
+}
+
+/* На вкладке "Отправленные" бейджей/кнопок может быть много (статус, чаты,
+   приглашение) — сжимать имя ради них не стоит, поэтому строим в два яруса:
+   имя/контакты сверху во всю ширину, действия отдельной строкой снизу. */
+.sent-row {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.sent-row .contact-info {
+  flex-basis: 100%;
+}
+.sent-row .contact-actions {
+  margin-top: 8px;
 }
 
 .priority-input {

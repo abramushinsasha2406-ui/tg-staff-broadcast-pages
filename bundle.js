@@ -39051,7 +39051,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   }
   function buildSentRow(it) {
     const row = document.createElement("div");
-    row.className = "contact-row";
+    row.className = "contact-row sent-row";
     let statusHtml;
     if (it.status === "failed") {
       statusHtml = `<span class="status-badge status-failed-badge">\u043D\u0435 \u0434\u043E\u0441\u0442\u0430\u0432\u043B\u0435\u043D\u043E</span>`;
