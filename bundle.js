@@ -38394,9 +38394,10 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
-  async function broadcastToContacts(contacts2, text, { minDelay = 4, maxDelay = 9, onProgress } = {}) {
+  async function broadcastToContacts(contacts2, textOrFn, { minDelay = 4, maxDelay = 9, onProgress } = {}) {
     const c = getClient();
     await c.connect();
+    const resolveText = typeof textOrFn === "function" ? textOrFn : () => textOrFn;
     for (let i = 0; i < contacts2.length; i++) {
       const contact = contacts2[i];
       try {
@@ -38404,7 +38405,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
           userId: BigInt(contact.id),
           accessHash: BigInt(contact.accessHash)
         });
-        const sent = await c.sendMessage(entity, { message: text });
+        const sent = await c.sendMessage(entity, { message: resolveText(contact) });
         onProgress?.({ contact, status: "sent", messageId: sent.id, index: i, total: contacts2.length });
       } catch (e) {
         if (e instanceof import_telegram2.errors.FloodWaitError) {
@@ -38961,7 +38962,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     let sent = 0;
     let failed = 0;
     const sentItems = [];
-    await broadcastToContacts(targets, text, {
+    await broadcastToContacts(targets, (contact) => personalize(text, contact), {
       onProgress: ({ contact, status, messageId, seconds, index, total }) => {
         const row = rows.get(contact.id);
         const statusSpan = row.querySelector("span:last-child");
@@ -38993,6 +38994,9 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   function contactLabel(c) {
     const name = [c.firstName, c.lastName].filter(Boolean).join(" ") || c.username || c.phone || "\u0411\u0435\u0437 \u0438\u043C\u0435\u043D\u0438";
     return name;
+  }
+  function personalize(text, contact) {
+    return text.replace(/\{name\}/gi, contact.firstName || contactLabel(contact));
   }
   function contactSub(c) {
     const parts = [];
