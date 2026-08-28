@@ -38727,7 +38727,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   el("chat-search").addEventListener("input", async () => {
     const q = el("chat-search").value.trim().toLowerCase();
     if (!q) {
-      el("chat-search-results").classList.add("hidden");
+      closeChatDropdown();
       return;
     }
     let chats;
@@ -38735,21 +38735,31 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
       if (groupChats === null) groupChats = await fetchGroupChats();
       chats = groupChats;
     } catch (e) {
-      el("chat-search-results").classList.remove("hidden");
+      openChatDropdown();
       el("chat-search-results").innerHTML = `<div class="chat-search-item">\u041E\u0448\u0438\u0431\u043A\u0430: ${escapeHtml(e.message)}</div>`;
       return;
     }
     const matches = chats.filter((chat) => chat.title.toLowerCase().includes(q)).slice(0, 15);
     renderChatSearchResults(matches);
   });
+  function openChatDropdown() {
+    el("chat-search-results").classList.remove("hidden");
+    el("contacts-list").classList.add("hidden");
+    el("contacts-empty").classList.add("hidden");
+  }
+  function closeChatDropdown() {
+    el("chat-search-results").classList.add("hidden");
+    el("chat-search-results").innerHTML = "";
+    render();
+  }
   function renderChatSearchResults(matches) {
     const box = el("chat-search-results");
     box.innerHTML = "";
     if (matches.length === 0) {
-      box.classList.add("hidden");
+      closeChatDropdown();
       return;
     }
-    box.classList.remove("hidden");
+    openChatDropdown();
     matches.forEach((chat) => {
       const item = document.createElement("div");
       item.className = "chat-search-item";
@@ -38762,10 +38772,8 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     selectedChat = chat;
     saveSelectedChat();
     el("chat-search").value = "";
-    el("chat-search-results").classList.add("hidden");
-    el("chat-search-results").innerHTML = "";
+    closeChatDropdown();
     updateChatSelectedUI();
-    renderSentList();
   }
   function updateChatSelectedUI() {
     const box = el("chat-selected");
