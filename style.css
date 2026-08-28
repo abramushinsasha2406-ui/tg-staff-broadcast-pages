@@ -326,22 +326,17 @@ header h1 { margin: 0; }
 
 .chat-invite-block {
   margin-top: 10px;
-  position: relative;
 }
 
+/* Обычный блок в потоке (не наложение поверх контента) — при открытии
+   просто сдвигает всё, что ниже, вместо наложения и связанных с ним багов. */
 .chat-search-results {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 20;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 10px;
-  margin-top: 4px;
+  margin-top: 8px;
   max-height: 200px;
   overflow-y: auto;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
 .chat-search-item {

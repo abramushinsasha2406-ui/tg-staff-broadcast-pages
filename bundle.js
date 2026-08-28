@@ -38724,7 +38724,9 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   el("chat-search").addEventListener("focus", () => {
     groupChats = null;
   });
+  var chatSearchToken = 0;
   el("chat-search").addEventListener("input", async () => {
+    const token = ++chatSearchToken;
     const q = el("chat-search").value.trim().toLowerCase();
     if (!q) {
       closeChatDropdown();
@@ -38735,22 +38737,18 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
       if (groupChats === null) groupChats = await fetchGroupChats();
       chats = groupChats;
     } catch (e) {
-      openChatDropdown();
+      if (token !== chatSearchToken) return;
+      el("chat-search-results").classList.remove("hidden");
       el("chat-search-results").innerHTML = `<div class="chat-search-item">\u041E\u0448\u0438\u0431\u043A\u0430: ${escapeHtml(e.message)}</div>`;
       return;
     }
+    if (token !== chatSearchToken) return;
     const matches = chats.filter((chat) => chat.title.toLowerCase().includes(q)).slice(0, 15);
     renderChatSearchResults(matches);
   });
-  function openChatDropdown() {
-    el("chat-search-results").classList.remove("hidden");
-    el("contacts-list").classList.add("hidden");
-    el("contacts-empty").classList.add("hidden");
-  }
   function closeChatDropdown() {
     el("chat-search-results").classList.add("hidden");
     el("chat-search-results").innerHTML = "";
-    render();
   }
   function renderChatSearchResults(matches) {
     const box = el("chat-search-results");
@@ -38759,7 +38757,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
       closeChatDropdown();
       return;
     }
-    openChatDropdown();
+    box.classList.remove("hidden");
     matches.forEach((chat) => {
       const item = document.createElement("div");
       item.className = "chat-search-item";
