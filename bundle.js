@@ -38564,6 +38564,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   var groupChats = null;
   var inviteSelection = /* @__PURE__ */ new Set();
   var sentFilter = "all";
+  var autoCheckedBatchIds = /* @__PURE__ */ new Set();
   function loadSelectedChat() {
     try {
       return JSON.parse(localStorage.getItem(SELECTED_CHAT_KEY)) || null;
@@ -38901,8 +38902,10 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     }
   }
   async function checkStatuses(batch, btn) {
-    btn.disabled = true;
-    btn.textContent = "\u041F\u0440\u043E\u0432\u0435\u0440\u044F\u044E\u2026";
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "\u041F\u0440\u043E\u0432\u0435\u0440\u044F\u044E\u2026";
+    }
     try {
       const sentItems = batch.items.filter((it) => it.status === "sent" && it.messageId);
       if (sentItems.length > 0) {
@@ -38910,7 +38913,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
         for (const it of sentItems) {
           const maxRead = readMap[it.id];
           it.read = typeof maxRead === "number" && maxRead >= it.messageId;
-          if (it.read) {
+          if (it.read && !it.reply) {
             try {
               const reply = await fetchReply(it, it.messageId);
               if (reply) it.reply = reply;
@@ -38923,9 +38926,9 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
       saveBroadcastHistory();
       renderSentList();
     } catch (e) {
-      alert("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0441\u0442\u0430\u0442\u0443\u0441\u044B: " + e.message);
+      if (btn) alert("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0441\u0442\u0430\u0442\u0443\u0441\u044B: " + e.message);
     } finally {
-      if (btn.isConnected) {
+      if (btn && btn.isConnected) {
         btn.disabled = false;
         btn.textContent = "\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0441\u0442\u0430\u0442\u0443\u0441\u044B";
       }
@@ -39117,6 +39120,11 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     if (visibleBatches.length === 0) emptyEl.textContent = "\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E";
     visibleBatches.forEach(({ batch, items }) => {
       const isOpen = openBatchIds.has(batch.id);
+      if (isOpen && !autoCheckedBatchIds.has(batch.id)) {
+        autoCheckedBatchIds.add(batch.id);
+        const needsCheck = batch.items.some((it) => it.status === "sent" && it.messageId && it.read === void 0);
+        if (needsCheck) checkStatuses(batch, null);
+      }
       const card = document.createElement("div");
       card.className = "batch-card" + (isOpen ? " open" : "");
       const sentAtStr = new Date(batch.sentAt).toLocaleString("ru-RU");
