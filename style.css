@@ -186,6 +186,7 @@ header h1 { margin: 0; }
 .select-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 14px;
   margin: 10px 0;
 }
@@ -196,6 +197,12 @@ header h1 { margin: 0; }
   max-height: 320px;
   overflow-y: auto;
   border-top: 1px solid var(--border);
+}
+
+/* Свёрнутое состояние — список никуда не пропадает, просто становится
+   компактным (~5 контактов) и остаётся прокручиваемым внутри себя. */
+.contacts-list.collapsed {
+  max-height: 250px;
 }
 
 .contact-row {
