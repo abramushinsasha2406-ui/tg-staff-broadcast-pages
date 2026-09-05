@@ -38682,6 +38682,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     try {
       currentPhone = phone;
       phoneCodeHash = await sendCode(phone);
+      el("login-code-phone").textContent = phone;
       el("login-step-phone").classList.add("hidden");
       el("login-step-code").classList.remove("hidden");
     } catch (e) {
@@ -38704,6 +38705,15 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     } finally {
       el("login-code-resend").disabled = false;
     }
+  });
+  el("login-code-back").addEventListener("click", () => {
+    currentPhone = "";
+    phoneCodeHash = "";
+    el("login-code").value = "";
+    el("login-error").textContent = "";
+    el("login-resend-hint").textContent = "";
+    el("login-step-code").classList.add("hidden");
+    el("login-step-phone").classList.remove("hidden");
   });
   el("login-confirm-code").addEventListener("click", async () => {
     const code = el("login-code").value.trim();
