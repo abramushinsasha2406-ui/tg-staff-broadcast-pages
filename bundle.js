@@ -38336,8 +38336,16 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     const c = getClient();
     const creds = getSavedCredentials();
     await c.connect();
-    const result = await c.sendCode({ apiId: creds.apiId, apiHash: creds.apiHash }, phone, true);
-    return { phoneCodeHash: result.phoneCodeHash, isCodeViaApp: result.isCodeViaApp };
+    try {
+      const result = await c.sendCode({ apiId: creds.apiId, apiHash: creds.apiHash }, phone, true);
+      return { phoneCodeHash: result.phoneCodeHash, isCodeViaApp: result.isCodeViaApp, restarted: false };
+    } catch (e) {
+      if (e.errorMessage === "SEND_CODE_UNAVAILABLE") {
+        const result = await c.sendCode({ apiId: creds.apiId, apiHash: creds.apiHash }, phone);
+        return { phoneCodeHash: result.phoneCodeHash, isCodeViaApp: result.isCodeViaApp, restarted: true };
+      }
+      throw e;
+    }
   }
   async function signIn(phone, phoneCodeHash2, code) {
     const c = getClient();
@@ -38698,7 +38706,11 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     try {
       const result = await resendCode(currentPhone);
       phoneCodeHash = result.phoneCodeHash;
-      el("login-resend-hint").textContent = result.isCodeViaApp ? "\u041A\u043E\u0434 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D \u0432 Telegram \u0435\u0449\u0451 \u0440\u0430\u0437." : "\u041A\u043E\u0434 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D \u043F\u043E SMS/\u0437\u0432\u043E\u043D\u043A\u043E\u043C.";
+      if (result.restarted) {
+        el("login-resend-hint").textContent = "\u0421\u043F\u043E\u0441\u043E\u0431\u044B \u0434\u043E\u0441\u0442\u0430\u0432\u043A\u0438 \u0437\u0430\u043A\u043E\u043D\u0447\u0438\u043B\u0438\u0441\u044C, \u0437\u0430\u043F\u0440\u043E\u0441\u0438\u043B \u043A\u043E\u0434 \u0437\u0430\u043D\u043E\u0432\u043E.";
+      } else {
+        el("login-resend-hint").textContent = result.isCodeViaApp ? "\u041A\u043E\u0434 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D \u0432 Telegram \u0435\u0449\u0451 \u0440\u0430\u0437." : "\u041A\u043E\u0434 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D \u043F\u043E SMS/\u0437\u0432\u043E\u043D\u043A\u043E\u043C.";
+      }
     } catch (e) {
       el("login-resend-hint").textContent = "";
       el("login-error").textContent = "\u041E\u0448\u0438\u0431\u043A\u0430: " + e.message;
