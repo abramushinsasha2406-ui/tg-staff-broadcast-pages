@@ -38332,6 +38332,13 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     const result = await c.sendCode({ apiId: creds.apiId, apiHash: creds.apiHash }, phone);
     return result.phoneCodeHash;
   }
+  async function resendCode(phone) {
+    const c = getClient();
+    const creds = getSavedCredentials();
+    await c.connect();
+    const result = await c.sendCode({ apiId: creds.apiId, apiHash: creds.apiHash }, phone, true);
+    return { phoneCodeHash: result.phoneCodeHash, isCodeViaApp: result.isCodeViaApp };
+  }
   async function signIn(phone, phoneCodeHash2, code) {
     const c = getClient();
     try {
@@ -38681,6 +38688,21 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
       el("login-error").textContent = "\u041E\u0448\u0438\u0431\u043A\u0430: " + e.message;
     } finally {
       el("login-send-code").disabled = false;
+    }
+  });
+  el("login-code-resend").addEventListener("click", async () => {
+    el("login-code-resend").disabled = true;
+    el("login-error").textContent = "";
+    el("login-resend-hint").textContent = "\u0417\u0430\u043F\u0440\u0430\u0448\u0438\u0432\u0430\u044E \u0434\u0440\u0443\u0433\u043E\u0439 \u0441\u043F\u043E\u0441\u043E\u0431 \u0434\u043E\u0441\u0442\u0430\u0432\u043A\u0438...";
+    try {
+      const result = await resendCode(currentPhone);
+      phoneCodeHash = result.phoneCodeHash;
+      el("login-resend-hint").textContent = result.isCodeViaApp ? "\u041A\u043E\u0434 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D \u0432 Telegram \u0435\u0449\u0451 \u0440\u0430\u0437." : "\u041A\u043E\u0434 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D \u043F\u043E SMS/\u0437\u0432\u043E\u043D\u043A\u043E\u043C.";
+    } catch (e) {
+      el("login-resend-hint").textContent = "";
+      el("login-error").textContent = "\u041E\u0448\u0438\u0431\u043A\u0430: " + e.message;
+    } finally {
+      el("login-code-resend").disabled = false;
     }
   });
   el("login-confirm-code").addEventListener("click", async () => {

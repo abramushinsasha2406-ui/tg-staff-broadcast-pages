@@ -7,11 +7,11 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Рассылка" />
   <meta name="theme-color" content="#0a0806" />
-  <link rel="apple-touch-icon" href="icons/icon-180.png?v=1788614387" />
-  <link rel="manifest" href="manifest.json?v=1788612688" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png?v=1788615414" />
+  <link rel="manifest" href="manifest.json?v=1788615414" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="style.css?v=1788602951" />
+  <link rel="stylesheet" href="style.css?v=1788615414" />
   <title>Рассылка персоналу</title>
 </head>
 <body>
@@ -44,6 +44,8 @@
       <label>Код из Telegram</label>
       <input type="text" id="login-code" inputmode="numeric" placeholder="12345" />
       <button id="login-confirm-code">Войти</button>
+      <button id="login-code-resend" class="link-btn" type="button">Отправить код другим способом</button>
+      <p id="login-resend-hint" class="hint"></p>
     </div>
     <div id="login-step-password" class="hidden">
       <label>Пароль двухфакторной защиты</label>
@@ -116,6 +118,6 @@
     </div>
   </section>
 
-  <script src="bundle.js?v=1788602951"></script>
+  <script src="bundle.js?v=1788615414"></script>
 </body>
 </html>
