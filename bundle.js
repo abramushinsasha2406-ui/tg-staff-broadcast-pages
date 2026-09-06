@@ -38293,6 +38293,13 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     const apiHash = localStorage.getItem(API_HASH_KEY);
     return apiId && apiHash ? { apiId: Number(apiId), apiHash } : null;
   }
+  function requireCredentials() {
+    const creds = getSavedCredentials();
+    if (!creds) {
+      throw new Error("CREDENTIALS_LOST");
+    }
+    return creds;
+  }
   function saveCredentials(apiId, apiHash) {
     localStorage.setItem(API_ID_KEY, String(apiId));
     localStorage.setItem(API_HASH_KEY, apiHash);
@@ -38311,7 +38318,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     if (!client) {
       const creds = getSavedCredentials();
       if (!creds) {
-        throw new Error("api_id/api_hash \u043D\u0435 \u0437\u0430\u0434\u0430\u043D\u044B \u2014 \u0441\u043D\u0430\u0447\u0430\u043B\u0430 \u043F\u0440\u043E\u0439\u0434\u0438\u0442\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0443");
+        throw new Error("CREDENTIALS_LOST");
       }
       const session = new import_sessions.StringSession(getSavedSession());
       client = new import_telegram.TelegramClient(session, creds.apiId, creds.apiHash, {
@@ -38327,14 +38334,14 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   }
   async function sendCode(phone) {
     const c = getClient();
-    const creds = getSavedCredentials();
+    const creds = requireCredentials();
     await c.connect();
     const result = await c.sendCode({ apiId: creds.apiId, apiHash: creds.apiHash }, phone);
     return result.phoneCodeHash;
   }
   async function resendCode(phone) {
     const c = getClient();
-    const creds = getSavedCredentials();
+    const creds = requireCredentials();
     await c.connect();
     try {
       const result = await c.sendCode({ apiId: creds.apiId, apiHash: creds.apiHash }, phone, true);
@@ -38368,7 +38375,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
   }
   async function signInWithPassword(password) {
     const c = getClient();
-    const creds = getSavedCredentials();
+    const creds = requireCredentials();
     await c.signInWithPassword(
       { apiId: creds.apiId, apiHash: creds.apiHash },
       {
@@ -38664,6 +38671,15 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
     saveFavorites();
     renderContacts();
   }
+  function showLoginError(e) {
+    if (e.message === "CREDENTIALS_LOST") {
+      el("login-error").textContent = "";
+      el("setup-error").textContent = "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u043F\u043E\u0442\u0435\u0440\u044F\u043B\u0438\u0441\u044C, \u0432\u0432\u0435\u0434\u0438\u0442\u0435 api_id \u0438 api_hash \u0437\u0430\u043D\u043E\u0432\u043E.";
+      showScreen("setup");
+      return;
+    }
+    el("login-error").textContent = "\u041E\u0448\u0438\u0431\u043A\u0430: " + e.message;
+  }
   el("setup-submit").addEventListener("click", () => {
     const apiId = el("setup-api-id").value.trim();
     const apiHash = el("setup-api-hash").value.trim();
@@ -38694,7 +38710,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
       el("login-step-phone").classList.add("hidden");
       el("login-step-code").classList.remove("hidden");
     } catch (e) {
-      el("login-error").textContent = "\u041E\u0448\u0438\u0431\u043A\u0430: " + e.message;
+      showLoginError(e);
     } finally {
       el("login-send-code").disabled = false;
     }
@@ -38713,7 +38729,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
       }
     } catch (e) {
       el("login-resend-hint").textContent = "";
-      el("login-error").textContent = "\u041E\u0448\u0438\u0431\u043A\u0430: " + e.message;
+      showLoginError(e);
     } finally {
       el("login-code-resend").disabled = false;
     }
@@ -38740,7 +38756,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
         await enterMain();
       }
     } catch (e) {
-      el("login-error").textContent = "\u041E\u0448\u0438\u0431\u043A\u0430: " + e.message;
+      showLoginError(e);
     } finally {
       el("login-confirm-code").disabled = false;
     }
@@ -38753,7 +38769,7 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
       await signInWithPassword(password);
       await enterMain();
     } catch (e) {
-      el("login-error").textContent = "\u041E\u0448\u0438\u0431\u043A\u0430: " + e.message;
+      showLoginError(e);
     } finally {
       el("login-confirm-password").disabled = false;
     }
@@ -39391,7 +39407,11 @@ destroy_session#e7512126 session_id:long = DestroySessionRes;
         await enterMain();
       }
     } catch (e) {
-      el("login-error").textContent = "\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u044F: " + e.message;
+      if (e.message === "CREDENTIALS_LOST") {
+        showLoginError(e);
+      } else {
+        el("login-error").textContent = "\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u044F: " + e.message;
+      }
     }
   }
   boot();
